@@ -1,0 +1,103 @@
+# ==============================================================================
+# BizMetrics - Production .gitignore for GitHub Release
+# ==============================================================================
+
+# 1. Environment variables & Secret Keys
+.env
+.env.*
+!.env.example
+.session_secret
+secrets.toml
+.streamlit/secrets.toml
+*.pem
+*.key
+*.crt
+
+# 2. SQLite Relational Databases & WAL / SHM files (Live Credentials & Sessions)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.db.bak
+bizmetrics.db
+bizmetrics_auth.db
+
+# 3. Python Bytecode, Caches & Distribution
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 4. Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# 5. IDE & Editor Configuration
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
+
+# 6. Testing, Profiling & Coverage Artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+
+# 7. Temporary, Scratch, and Backup Files
+scratch/
+scratch_*
+res.json
+backups/
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# 8. Logs & Crash Reports
+*.log
+logs/
+*.log.*
+
+# 9. Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 10. Node / npm artifacts
+node_modules/
+package-lock.json
