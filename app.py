@@ -655,7 +655,6 @@ elif st.session_state.get("user_role") == "customer":
 
         customer_name = st.text_input(t("Customer Name", lang), value="Shivansh", placeholder="e.g. Shivansh", key="route2_customer_name")
         customer_id = st.text_input(t("Customer ID", lang), value="CUST001", type="password", placeholder="e.g. CUST001", key="route2_customer_id")
-        st.caption("🔑 Default credentials: Name **Shivansh** / Customer ID **CUST001**")
 
         if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_customer_login_route2, key="btn_route2_customer_login"):
             if not st.session_state.get("customer_authenticated", False):
@@ -756,8 +755,7 @@ elif st.session_state.get("user_role") == "owner":
             st.session_state["shop_name"] = shop_options[selected_shop_id]
 
             owner_name = st.text_input(t("Owner Name", lang), value=OWNER_NAME, placeholder="e.g. Shivansh G", key="route3_owner_name")
-            owner_password = st.text_input(t("Password", lang), value="", type="password", placeholder="Enter password (default: Shivansh@1212)", key="route3_owner_password")
-            st.caption("🔑 Default credentials: **Shivansh G** / **Shivansh@1212**")
+            owner_password = st.text_input(t("Password", lang), value="", type="password", placeholder="Enter your password", key="route3_owner_password")
 
             if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_owner_login_route3, key="btn_route3_owner_login"):
                 if not st.session_state.get("owner_authenticated", False):
@@ -943,8 +941,7 @@ else:
         if login_type == "Owner":
             st.markdown(f"### {t('OWNER LOGIN', lang)}")
             owner_name = st.text_input(t("Owner Name", lang), value=OWNER_NAME, placeholder="e.g. Shivansh G", key="landing_owner_name")
-            owner_password = st.text_input(t("Password", lang), value="", type="password", placeholder="Enter password (default: Shivansh@1212)", key="landing_owner_password")
-            st.caption("🔑 Default credentials: **Shivansh G** / **Shivansh@1212**")
+            owner_password = st.text_input(t("Password", lang), value="", type="password", placeholder="Enter your password", key="landing_owner_password")
             if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_owner_login_route4, key="btn_landing_owner_login"):
                 if not st.session_state.get("owner_authenticated", False):
                     handle_owner_login_route4()
@@ -954,7 +951,6 @@ else:
             st.markdown(f"### {t('CUSTOMER LOGIN', lang)}")
             customer_name = st.text_input(t("Customer Name", lang), value="Shivansh", placeholder="e.g. Shivansh", key="landing_customer_name")
             customer_id = st.text_input(t("Customer ID", lang), value="CUST001", type="password", placeholder="e.g. CUST001", key="landing_customer_id")
-            st.caption("🔑 Default credentials: Name **Shivansh** / Customer ID **CUST001**")
             if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_customer_login_route4, key="btn_landing_customer_login"):
                 if not st.session_state.get("customer_authenticated", False):
                     handle_customer_login_route4()

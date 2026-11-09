@@ -269,8 +269,8 @@ Open `http://localhost:8501` in your browser.
 
 | Role | Username / ID | Password | Scope |
 |---|---|---|---|
-| **Business Owner (Admin)** | `Shivansh G` | `Shivansh@1212` | Full platform access (P&L, inventory, GIS, settings) |
-| **Customer Portal** | `Shivansh` | `CUST001` | Client self-service portal (orders, dues, invoices) |
+| **Business Owner (Admin)** | `Shivansh G` | Configured via environment variable `BIZMETRICS_OWNER_PASSWORD` or Streamlit secrets | Full platform access (P&L, inventory, GIS, settings) |
+| **Customer Portal** | `Shivansh` | Customer ID (`CUST001`) | Client self-service portal (orders, dues, invoices) |
 
 ---
 
