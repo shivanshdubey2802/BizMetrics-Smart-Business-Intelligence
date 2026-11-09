@@ -589,6 +589,13 @@ def render_sidebar():
 
         lang = get_current_language()
 
+        # Dataset Manager Widget (File Uploader & Provenance Badge)
+        try:
+            from utils.data_loader import render_dataset_uploader_widget
+            render_dataset_uploader_widget(in_sidebar=True)
+        except Exception:
+            pass
+
         # MANAGE section
         st.markdown(f'<div class="sidebar-section-header">{t("MANAGE", lang)}</div>', unsafe_allow_html=True)
         _safe_page_link("pages/01_dashboard.py", label=t("Dashboard", lang))

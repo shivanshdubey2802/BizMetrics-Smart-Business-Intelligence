@@ -1,24 +1,51 @@
-import streamlit as st
-import pandas as pd
-from pathlib import Path
+import os
 import hashlib
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+import pandas as pd
+import streamlit as st
 from pipeline import analyze_inventory, run_pipeline, validate_and_clean
 
-def find_master_csv():
-    """Finds the master CSV robustly from the project root."""
+# Dataset Provenance Mode Constants
+DATASET_MODE_ORIGINAL = "original"
+DATASET_MODE_UPLOADED = "uploaded"
+DATASET_MODE_DEMO = "demo"
+
+DATASET_LABELS = {
+    DATASET_MODE_ORIGINAL: "Original Business Dataset",
+    DATASET_MODE_UPLOADED: "Uploaded Dataset",
+    DATASET_MODE_DEMO: "Demo Dataset (Synthetic Sample Data)",
+}
+
+
+def find_master_csv() -> Optional[Path]:
+    """Finds the original private business master CSV robustly if configured or present locally."""
+    # 1. First check explicit environment variable or cloud secret
+    configured_path = os.getenv("BIZMETRICS_DATASET_PATH", "").strip()
+    if not configured_path and hasattr(st, "secrets") and "BIZMETRICS_DATASET_PATH" in st.secrets:
+        try:
+            configured_path = str(st.secrets["BIZMETRICS_DATASET_PATH"]).strip()
+        except Exception:
+            configured_path = ""
+
+    if configured_path:
+        p = Path(configured_path)
+        if p.is_file():
+            return p.resolve()
+
     candidate_roots = [
-        Path(__file__).resolve().parent.parent,          # sih-main (utils/..)
+        Path(__file__).resolve().parent.parent,          # project root
         Path.cwd(),                                     # current working directory
-        Path.cwd() / "sih-main",                        # if cwd is sih-main final
-        Path(__file__).resolve().parent.parent.parent,  # sih-main final
+        Path.cwd() / "sih-main",                        # if cwd is parent
+        Path(__file__).resolve().parent.parent.parent,
         Path(__file__).resolve().parent,                # utils
     ]
-    
+
     csv_names = [
         "rural_business_master_data.csv",
         "dataural_business_master_data.csv",
     ]
-    
+
     seen = set()
     for root in candidate_roots:
         if not root or str(root) in seen:
@@ -31,36 +58,70 @@ def find_master_csv():
             p2 = root / "data" / name
             if p2.is_file():
                 return p2.resolve()
-                
+
     # Fallback: search within candidate directories
     for root in candidate_roots:
         if root.is_dir():
             for found in root.glob("**/rural_business_master_data.csv"):
                 if found.is_file():
                     return found.resolve()
-            
+
     return None
 
-def generate_missing_mobile_numbers(df, csv_path):
+
+def find_demo_csv() -> Optional[Path]:
+    """Finds the bundled, non-sensitive synthetic demo dataset."""
+    candidate_roots = [
+        Path(__file__).resolve().parent.parent,          # project root
+        Path.cwd(),
+        Path(__file__).resolve().parent.parent.parent,
+        Path(__file__).resolve().parent,
+    ]
+    demo_names = [
+        "data/demo_business_master_data.csv",
+        "demo_business_master_data.csv",
+    ]
+    seen = set()
+    for root in candidate_roots:
+        if not root or str(root) in seen:
+            continue
+        seen.add(str(root))
+        for name in demo_names:
+            p = root / name
+            if p.is_file():
+                return p.resolve()
+            p_data = root / "data" / name
+            if p_data.is_file():
+                return p_data.resolve()
+
+    for root in candidate_roots:
+        if root.is_dir():
+            for found in root.glob("**/demo_business_master_data.csv"):
+                if found.is_file():
+                    return found.resolve()
+
+    return None
+
+
+def generate_missing_mobile_numbers(df: pd.DataFrame, csv_path: Any) -> pd.DataFrame:
     """Persist one canonical demo mobile number per customer ID."""
     modified = False
 
-    customer_id_col = next((col for col in df.columns if col.lower() in {'customer_id', 'customerid'}), None)
-    record_type_col = next((col for col in df.columns if col.lower() == 'record_type'), None)
-    mobile_col = next((col for col in df.columns if col.lower() == 'mobile_number'), None)
+    customer_id_col = next((col for col in df.columns if col.lower() in {"customer_id", "customerid"}), None)
+    record_type_col = next((col for col in df.columns if col.lower() == "record_type"), None)
+    mobile_col = next((col for col in df.columns if col.lower() == "mobile_number"), None)
     source_contact_col = next((col for col in df.columns if col.lower() in {
-        'contact_number', 'mobile', 'phone', 'phone_number', 'customer_phone'
+        "contact_number", "mobile", "phone", "phone_number", "customer_phone"
     }), None)
 
     if mobile_col is None:
-        mobile_col = 'Mobile_Number'
+        mobile_col = "Mobile_Number"
         df[mobile_col] = None
         modified = True
 
     df[mobile_col] = df[mobile_col].astype("string")
 
     if mobile_col is not None and not modified:
-        # Fast exit if mobile numbers are already populated
         existing_vals = df[mobile_col].dropna()
         if len(existing_vals) == len(df) and not (existing_vals.str.strip() == "").any():
             return df
@@ -69,25 +130,25 @@ def generate_missing_mobile_numbers(df, csv_path):
         return df
 
     for idx, row in df.iterrows():
-        record_type = str(row.get(record_type_col, '')).strip().lower() if record_type_col else ''
-        if record_type not in ['receivable', 'customer']:
+        record_type = str(row.get(record_type_col, "")).strip().lower() if record_type_col else ""
+        if record_type not in ["receivable", "customer"]:
             continue
 
-        cust_id = str(row.get(customer_id_col, '')).strip()
-        if not cust_id or cust_id == 'nan':
+        cust_id = str(row.get(customer_id_col, "")).strip()
+        if not cust_id or cust_id == "nan":
             continue
 
-        existing_mobile = row.get(mobile_col, '')
-        source_mobile = row.get(source_contact_col, '') if source_contact_col else ''
+        existing_mobile = row.get(mobile_col, "")
+        source_mobile = row.get(source_contact_col, "") if source_contact_col else ""
         existing = str(existing_mobile).strip()
-        if not existing or existing.lower() in {'nan', 'none'}:
+        if not existing or existing.lower() in {"nan", "none"}:
             existing = str(source_mobile).strip()
-        if existing.endswith('.0'):
+        if existing.endswith(".0"):
             existing = existing[:-2]
 
-        digits_only = ''.join(c for c in existing if c.isdigit())
-        if len(digits_only) == 10 and digits_only[0] in '6789':
-            if str(row.get(mobile_col, '')).strip() != digits_only:
+        digits_only = "".join(c for c in existing if c.isdigit())
+        if len(digits_only) == 10 and digits_only[0] in "6789":
+            if str(row.get(mobile_col, "")).strip() != digits_only:
                 df.at[idx, mobile_col] = digits_only
                 modified = True
         else:
@@ -98,11 +159,11 @@ def generate_missing_mobile_numbers(df, csv_path):
             df.at[idx, mobile_col] = demo_num
             modified = True
 
-    # Return cleaned in-memory dataframe without repeatedly mutating file on disk
     return df
 
+
 @st.cache_data(show_spinner=False)
-def load_master_data(csv_path, file_signature):
+def load_master_data(csv_path: str, file_signature: tuple) -> pd.DataFrame:
     """Load and clean the master data once per CSV version."""
     df = pd.read_csv(csv_path, dtype={"Mobile_Number": "string", "Contact_Number": "string"})
     df = generate_missing_mobile_numbers(df, csv_path)
@@ -110,7 +171,7 @@ def load_master_data(csv_path, file_signature):
 
 
 @st.cache_data(show_spinner=False)
-def get_cached_pipeline_result(csv_path, file_signature, include_inventory_ml=False):
+def get_cached_pipeline_result(csv_path: str, file_signature: tuple, include_inventory_ml: bool = False):
     """Run deterministic pipeline work once per CSV version and ML mode."""
     clean_df = load_master_data(csv_path, file_signature)
     result = run_pipeline(clean_df, include_inventory_ml=include_inventory_ml)
@@ -128,37 +189,38 @@ def load_public_benchmark_datasets():
     """Load authentic public benchmark datasets (UCI Retail, Credit Risk, OSM)."""
     sources_dir = Path(__file__).resolve().parent.parent / "data" / "sources"
     results = {}
-    
+
     uci_retail = sources_dir / "uci_online_retail_authentic.csv"
     if uci_retail.is_file():
         results["uci_retail"] = pd.read_csv(uci_retail)
-        
+
     uci_fc = sources_dir / "uci_inventory_forecast_benchmark.csv"
     if uci_fc.is_file():
         results["uci_forecast"] = pd.read_csv(uci_fc)
-        
+
     credit_risk = sources_dir / "credit_risk_research_benchmark.csv"
     if credit_risk.is_file():
         results["credit_risk"] = pd.read_csv(credit_risk)
-        
+
     osm_file = sources_dir / "osm_verified_businesses.json"
     if osm_file.is_file():
         import json
         with open(osm_file, "r", encoding="utf-8") as f:
             results["osm_data"] = json.load(f)
-            
+
     return results
+
 
 def load_data_from_database(shop_id=None):
     """Load business data directly from the relational database."""
     try:
-        from utils.database import get_consolidated_master_df, DEFAULT_SHOP_ID
+        from utils.database import DEFAULT_SHOP_ID, get_consolidated_master_df
         df = get_consolidated_master_df(shop_id or DEFAULT_SHOP_ID)
         if df is not None and not df.empty:
             df = generate_missing_mobile_numbers(df, "database")
             return validate_and_clean(df)
     except Exception as exc:
-        print(f"Database load fallback to CSV: {exc}")
+        print(f"Database load fallback: {exc}")
     return None
 
 
@@ -172,32 +234,288 @@ def get_cached_database_pipeline_result(shop_id=None):
     return None, None
 
 
-def refresh_application_data(force=False):
-    """Refreshes the application data and pipeline results into session state."""
-    # Fast path: If already loaded in session state and not forced, return immediately
+def validate_uploaded_dataset(df: pd.DataFrame) -> Tuple[bool, str]:
+    """
+    Validates that an uploaded CSV has a compatible structure for BizMetrics.
+    Returns (is_valid, error_message).
+    """
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return False, "The uploaded file is empty. Please upload a valid CSV file with business records."
+
+    cols_lower = [str(c).strip().lower() for c in df.columns]
+
+    # Best match: Contains 'record_type' column
+    if "record_type" in cols_lower:
+        rec_col = next(c for c in df.columns if str(c).strip().lower() == "record_type")
+        vals = set(df[rec_col].dropna().astype(str).str.strip().str.lower().unique())
+        recognized = {"sale", "sales", "transaction", "inventory", "product", "receivable", "customer", "expense", "payable", "vendor", "loan", "business"}
+        if not vals.intersection(recognized):
+            return False, (
+                f"The 'record_type' column does not contain recognized BizMetrics record types "
+                f"(expected values like: Sale, Inventory, Receivable, Expense, Payable, Loan). Found: {', '.join(list(vals)[:5])}"
+            )
+        return True, ""
+
+    # Alternative match: Generic sales or transaction CSV without record_type column
+    has_amount = any(c in cols_lower for c in ["total_amount", "amount", "price", "selling_price"])
+    has_product = any(c in cols_lower for c in ["product_id", "product_name", "product", "item", "sku", "category"])
+
+    if has_amount and has_product:
+        return True, ""
+
+    missing = []
+    if not has_amount:
+        missing.append("an amount column (e.g. 'total_amount', 'selling_price', or 'amount')")
+    if not has_product:
+        missing.append("a product column (e.g. 'product_name', 'product_id', or 'category')")
+
+    return False, (
+        f"Incompatible CSV structure. The uploaded file is missing {', and '.join(missing)}, "
+        f"or a 'record_type' column. Please verify your CSV format or consult the sample template."
+    )
+
+
+def load_uploaded_dataset(uploaded_file) -> Tuple[bool, str]:
+    """
+    Parses and validates an uploaded file object from st.file_uploader.
+    If valid, updates session state with pipeline result and sets mode to 'uploaded'.
+    """
+    if uploaded_file is None:
+        return False, "No file provided."
+
+    try:
+        if hasattr(uploaded_file, "seek"):
+            uploaded_file.seek(0)
+        df = pd.read_csv(uploaded_file)
+    except Exception as exc:
+        err = f"Failed to parse CSV file: {exc}"
+        st.session_state["dataset_upload_error"] = err
+        return False, err
+
+    is_valid, err_msg = validate_uploaded_dataset(df)
+    if not is_valid:
+        st.session_state["dataset_upload_error"] = err_msg
+        return False, err_msg
+
+    cols_lower = [str(c).strip().lower() for c in df.columns]
+    if "record_type" not in cols_lower:
+        df["record_type"] = "Sale"
+
+    df = generate_missing_mobile_numbers(df, "uploaded_custom")
+    clean_df = validate_and_clean(df)
+
+    try:
+        result = run_pipeline(clean_df, include_inventory_ml=False)
+    except Exception as exc:
+        err = f"Pipeline execution error on uploaded dataset: {exc}"
+        st.session_state["dataset_upload_error"] = err
+        return False, err
+
+    file_name = getattr(uploaded_file, "name", "custom_uploaded_data.csv")
+    st.session_state["uploaded_custom_df"] = clean_df
+    st.session_state["raw_data"] = clean_df
+    st.session_state["pipeline_result"] = result
+    st.session_state["dataset_mode"] = DATASET_MODE_UPLOADED
+    st.session_state["dataset_name"] = file_name
+    st.session_state["dataset_path"] = f"Uploaded ({file_name})"
+    st.session_state["data_source_mode"] = "User Uploaded File"
+    st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_UPLOADED]
+    st.session_state.pop("dataset_upload_error", None)
+
+    return True, ""
+
+
+def reset_to_default_dataset():
+    """Clears uploaded dataset and falls back to original (if present) or demo dataset."""
+    st.session_state.pop("uploaded_custom_df", None)
+    st.session_state.pop("dataset_upload_error", None)
+    refresh_application_data(force=True)
+
+
+def get_dataset_provenance() -> Dict[str, Any]:
+    """Returns metadata about the currently active dataset."""
+    raw_df = st.session_state.get("raw_data")
+    row_count = len(raw_df) if isinstance(raw_df, pd.DataFrame) else 0
+    mode = st.session_state.get("dataset_mode", DATASET_MODE_DEMO)
+    name = st.session_state.get("dataset_name", "demo_business_master_data.csv")
+    status_label = st.session_state.get("dataset_status_label", DATASET_LABELS.get(mode, "Demo Dataset"))
+
+    return {
+        "mode": mode,
+        "name": name,
+        "status_label": status_label,
+        "row_count": row_count,
+        "is_demo": mode == DATASET_MODE_DEMO,
+        "is_uploaded": mode == DATASET_MODE_UPLOADED,
+        "is_original": mode == DATASET_MODE_ORIGINAL,
+        "path": st.session_state.get("dataset_path", ""),
+    }
+
+
+def render_dataset_status_banner():
+    """Renders a clear, non-intrusive status banner indicating the active dataset type."""
+    prov = get_dataset_provenance()
+    mode = prov["mode"]
+    name = prov["name"]
+    count = prov["row_count"]
+
+    if mode == DATASET_MODE_DEMO:
+        st.markdown(
+            f"""
+            <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 10px 16px; margin-bottom: 1.2rem; color: #92400E; font-size: 0.92rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <strong>🟡 Demo Mode Active:</strong> You are viewing synthetic, non-sensitive sample business data (<em>Demo Hardware & Electricals</em>, {count} records). No real customer data is exposed.
+                </div>
+                <div style="font-size: 0.82rem; color: #78350F; background: #FDE68A; padding: 3px 10px; border-radius: 12px; font-weight: 600;">
+                    Sample Data: {name}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    elif mode == DATASET_MODE_UPLOADED:
+        st.markdown(
+            f"""
+            <div style="background-color: #E0F2FE; border: 1px solid #0284C7; border-radius: 8px; padding: 10px 16px; margin-bottom: 1.2rem; color: #075985; font-size: 0.92rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <strong>🔵 Custom Uploaded Dataset:</strong> Analyzing your business records from <code>{name}</code> ({count} records).
+                </div>
+                <div style="font-size: 0.82rem; color: #0369A1; background: #BAE6FD; padding: 3px 10px; border-radius: 12px; font-weight: 600;">
+                    Uploaded CSV
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    elif mode == DATASET_MODE_ORIGINAL:
+        st.markdown(
+            f"""
+            <div style="background-color: #ECFDF5; border: 1px solid #10B981; border-radius: 8px; padding: 8px 14px; margin-bottom: 1.2rem; color: #065F46; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <strong>🟢 Live Business Dataset:</strong> Connected to verified business repository ({name}, {count} records).
+                </div>
+                <div style="font-size: 0.80rem; color: #047857; background: #A7F3D0; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
+                    Original Data
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def render_dataset_uploader_widget(in_sidebar: bool = True):
+    """Renders a dataset management widget with file uploader, validation, and reset controls."""
+    prov = get_dataset_provenance()
+    mode = prov["mode"]
+    name = prov["name"]
+    count = prov["row_count"]
+
+    with st.expander("📁 Dataset Manager", expanded=(mode == DATASET_MODE_DEMO and not in_sidebar)):
+        st.caption(f"**Source:** {prov['status_label']}")
+        st.caption(f"**Records:** {count} rows (`{name}`)")
+
+        uploaded = st.file_uploader(
+            "Upload Business CSV",
+            type=["csv"],
+            key="bizmetrics_dataset_file_uploader",
+            help="Upload a consolidated business master CSV or sales transaction CSV to analyze your own store data."
+        )
+
+        if uploaded is not None:
+            if st.session_state.get("dataset_name") != uploaded.name:
+                with st.spinner("Validating and analyzing dataset..."):
+                    success, msg = load_uploaded_dataset(uploaded)
+                    if success:
+                        st.success(f"✓ Loaded {uploaded.name} ({len(st.session_state['raw_data'])} rows)!")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {msg}")
+
+        if "dataset_upload_error" in st.session_state and st.session_state["dataset_upload_error"]:
+            st.error(f"❌ {st.session_state['dataset_upload_error']}")
+
+        if mode == DATASET_MODE_UPLOADED:
+            if st.button("↺ Reset to Default Dataset", key="btn_reset_dataset_source", use_container_width=True):
+                reset_to_default_dataset()
+                st.rerun()
+
+
+def refresh_application_data(force: bool = False):
+    """
+    Refreshes application data and pipeline results into session state.
+    Loading Hierarchy:
+    1. Active user-uploaded dataset (if present in session state)
+    2. Original business dataset:
+       a. Populated relational database (bizmetrics.db with business records)
+       b. Local master CSV (rural_business_master_data.csv or configured path)
+    3. Demo dataset (data/demo_business_master_data.csv) - non-sensitive synthetic data
+    4. Safe empty schema fallback (guaranteed never to crash or raise FileNotFoundError)
+    """
+    # Fast path: If already loaded and not forced, return immediately
     if not force and "pipeline_result" in st.session_state and "raw_data" in st.session_state:
-        if st.session_state["pipeline_result"] and not st.session_state["raw_data"].empty:
+        if st.session_state["pipeline_result"] is not None and st.session_state["raw_data"] is not None:
             return
 
-    # First attempt to load directly from centralized database using cached pipeline
+    # 1. User-uploaded custom dataset
+    if "uploaded_custom_df" in st.session_state and st.session_state["uploaded_custom_df"] is not None:
+        custom_df = st.session_state["uploaded_custom_df"]
+        result = run_pipeline(custom_df, include_inventory_ml=False)
+        st.session_state["raw_data"] = custom_df
+        st.session_state["pipeline_result"] = result
+        st.session_state["dataset_mode"] = DATASET_MODE_UPLOADED
+        st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_UPLOADED]
+        return
+
+    # 2a. Primary original: Populated relational database with business transactions
     db_clean, db_result = get_cached_database_pipeline_result()
-    if db_clean is not None and db_result is not None:
+    if db_clean is not None and db_result is not None and not db_clean.empty:
         st.session_state["pipeline_result"] = db_result
         st.session_state["raw_data"] = db_clean
         st.session_state["dataset_path"] = "SQLite Database (bizmetrics.db)"
         st.session_state["data_source_mode"] = "Relational Database"
+        st.session_state["dataset_mode"] = DATASET_MODE_ORIGINAL
+        st.session_state["dataset_name"] = "bizmetrics.db"
+        st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_ORIGINAL]
         return
 
-    # Fallback to CSV if database is not yet ready
+    # 2b. Secondary original: Local master CSV if present
     csv_path = find_master_csv()
-    if csv_path is None:
-        raise FileNotFoundError("rural_business_master_data.csv was not found.")
-        
-    file_stat = csv_path.stat()
-    file_signature = (file_stat.st_mtime_ns, file_stat.st_size)
-    clean_df, result = get_cached_pipeline_result(str(csv_path), file_signature, include_inventory_ml=False)
-    
-    st.session_state["pipeline_result"] = result
-    st.session_state["raw_data"] = clean_df
-    st.session_state["dataset_path"] = str(csv_path)
-    st.session_state["data_source_mode"] = "CSV File"
+    if csv_path is not None:
+        file_stat = csv_path.stat()
+        file_signature = (file_stat.st_mtime_ns, file_stat.st_size)
+        clean_df, result = get_cached_pipeline_result(str(csv_path), file_signature, include_inventory_ml=False)
+        st.session_state["pipeline_result"] = result
+        st.session_state["raw_data"] = clean_df
+        st.session_state["dataset_path"] = str(csv_path)
+        st.session_state["data_source_mode"] = "CSV File"
+        st.session_state["dataset_mode"] = DATASET_MODE_ORIGINAL
+        st.session_state["dataset_name"] = csv_path.name
+        st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_ORIGINAL]
+        return
+
+    # 3. Tertiary: Non-sensitive synthetic demo dataset (for public cloud deployments)
+    demo_path = find_demo_csv()
+    if demo_path is not None:
+        demo_stat = demo_path.stat()
+        demo_sig = (demo_stat.st_mtime_ns, demo_stat.st_size)
+        clean_df, result = get_cached_pipeline_result(str(demo_path), demo_sig, include_inventory_ml=False)
+        st.session_state["pipeline_result"] = result
+        st.session_state["raw_data"] = clean_df
+        st.session_state["dataset_path"] = str(demo_path)
+        st.session_state["data_source_mode"] = "Demo Dataset (Synthetic)"
+        st.session_state["dataset_mode"] = DATASET_MODE_DEMO
+        st.session_state["dataset_name"] = demo_path.name
+        st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_DEMO]
+        return
+
+    # 4. Final safety initialization: guaranteed valid empty pipeline state (never raise FileNotFoundError)
+    from utils.database import get_consolidated_master_df
+    empty_df = validate_and_clean(get_consolidated_master_df())
+    empty_res = run_pipeline(empty_df, include_inventory_ml=False)
+    st.session_state["pipeline_result"] = empty_res
+    st.session_state["raw_data"] = empty_df
+    st.session_state["dataset_path"] = "SQLite Database (bizmetrics.db)"
+    st.session_state["data_source_mode"] = "Relational Database"
+    st.session_state["dataset_mode"] = DATASET_MODE_ORIGINAL
+    st.session_state["dataset_name"] = "bizmetrics.db (Empty Schema)"
+    st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_ORIGINAL]

@@ -118,7 +118,7 @@ with tab_roles:
     with st.form("pwd_form"):
         p_c1, p_c2 = st.columns(2)
         with p_c1:
-            st.text_input(t("Current Password", lang), type="password", value="Shivansh@1212")
+            st.text_input(t("Current Password", lang), type="password", value="", placeholder="Enter current password")
         with p_c2:
             new_p = st.text_input(t("New Password", lang), type="password")
         if st.form_submit_button(t("Update Password", lang), type="primary"):

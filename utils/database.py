@@ -23,10 +23,43 @@ AUTH_DB_PATH = APP_ROOT / "bizmetrics_auth.db"
 
 _THREAD_LOCAL = threading.local()
 
+def _get_cloud_secret(key: str, default: str = "") -> str:
+    """Fetch secret from st.secrets first, falling back to os.environ and finally default."""
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            val = str(st.secrets[key]).strip()
+            if val:
+                return val
+    except Exception:
+        pass
+    val = os.getenv(key)
+    if val and str(val).strip():
+        return str(val).strip()
+    return default
+
+
+_IS_PROD_ENV = _get_cloud_secret("BIZMETRICS_ENV", "development").lower() == "production"
 DEFAULT_SHOP_ID = "shivansh_electronics_hardware"
 DEFAULT_SHOP_NAME = "Shivansh Electronics and Hardware"
-DEFAULT_OWNER_NAME = os.getenv("BIZMETRICS_OWNER_NAME", "Shivansh G")
-DEFAULT_OWNER_PASSWORD = os.getenv("BIZMETRICS_OWNER_PASSWORD", "Shivansh@1212")
+DEFAULT_OWNER_NAME = _get_cloud_secret("BIZMETRICS_OWNER_NAME", "Shivansh G")
+DEFAULT_OWNER_PASSWORD = _get_cloud_secret("BIZMETRICS_OWNER_PASSWORD", "" if _IS_PROD_ENV else "Shivansh@1212")
+
+CONSOLIDATED_MASTER_COLUMNS: list[str] = [
+    "record_type", "product_id", "product_name", "category", "sector", "unit",
+    "purchase_price", "selling_price", "current_stock", "minimum_stock",
+    "maximum_stock", "reorder_level", "status", "description", "supplier_id",
+    "lead_time_days", "sale_id", "business_id", "date", "customer_id",
+    "quantity", "discount_percent", "total_amount", "payment_mode",
+    "payment_status", "credit_amount", "notes", "expense_id", "amount",
+    "is_fixed", "customer_name", "business_name", "contact_number", "email",
+    "city", "customer_type", "registration_date", "customer_rating",
+    "outstanding_amount", "vendor_id", "vendor_name", "material_type",
+    "total_ordered_amount", "total_paid_amount", "outstanding_balance",
+    "next_payment_date", "credit_days_allowed", "loan_id", "loan_provider",
+    "principal_amount", "interest_rate", "tenure_months", "monthly_emi",
+    "outstanding_principal", "start_date", "next_due_date", "loan_type",
+    "due_date", "mobile_number",
+]
 
 
 def _clean_numeric(val: Any) -> float:
@@ -748,31 +781,40 @@ def init_database(db_path: Path | str | None = None) -> None:
             (DEFAULT_SHOP_ID, DEFAULT_SHOP_NAME),
         )
 
-        owner_hash = hashlib.sha256(DEFAULT_OWNER_PASSWORD.encode()).hexdigest()
-        cur.execute(
-            """
-            INSERT INTO users (username, full_name, password_hash, role, shop_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(username) DO UPDATE SET
-                full_name = excluded.full_name,
-                password_hash = excluded.password_hash,
-                role = excluded.role,
-                shop_id = excluded.shop_id
-            """,
-            ("Shivansh G", "Shivansh G", owner_hash, "Owner", DEFAULT_SHOP_ID),
-        )
-        cur.execute(
-            """
-            INSERT INTO users (username, full_name, password_hash, role, shop_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(username) DO UPDATE SET
-                full_name = excluded.full_name,
-                password_hash = excluded.password_hash,
-                role = excluded.role,
-                shop_id = excluded.shop_id
-            """,
-            ("shivansh", "Shivansh G", owner_hash, "Owner", DEFAULT_SHOP_ID),
-        )
+        if DEFAULT_OWNER_PASSWORD:
+            owner_hash = hashlib.sha256(DEFAULT_OWNER_PASSWORD.encode()).hexdigest()
+            cur.execute(
+                """
+                INSERT INTO users (username, full_name, password_hash, role, shop_id)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET
+                    full_name = excluded.full_name,
+                    password_hash = excluded.password_hash,
+                    role = excluded.role,
+                    shop_id = excluded.shop_id
+                """,
+                (DEFAULT_OWNER_NAME, DEFAULT_OWNER_NAME, owner_hash, "Owner", DEFAULT_SHOP_ID),
+            )
+            cur.execute(
+                """
+                INSERT INTO users (username, full_name, password_hash, role, shop_id)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET
+                    full_name = excluded.full_name,
+                    password_hash = excluded.password_hash,
+                    role = excluded.role,
+                    shop_id = excluded.shop_id
+                """,
+                (DEFAULT_OWNER_NAME.lower().replace(" ", ""), DEFAULT_OWNER_NAME, owner_hash, "Owner", DEFAULT_SHOP_ID),
+            )
+
+        # Seed verified public Durg-Bhilai datasets if local_demographics table is empty
+        try:
+            cur.execute("SELECT COUNT(*) FROM local_demographics")
+            if cur.fetchone()[0] == 0:
+                _seed_public_durg_bhilai_data(cur)
+        except Exception as e:
+            print(f"Notice: public Durg-Bhilai auto-seed: {e}")
     _INITIALIZED_DBS.add(target)
 
 
@@ -1581,6 +1623,9 @@ def get_consolidated_master_df(shop_id: str = DEFAULT_SHOP_ID) -> pd.DataFrame:
             "status": r.get("status"),
         })
 
+    if not records:
+        return pd.DataFrame(columns=CONSOLIDATED_MASTER_COLUMNS)
+
     df_out = pd.DataFrame(records)
     df_out.columns = df_out.columns.str.strip().str.lower()
     return df_out
@@ -1830,12 +1875,8 @@ def get_dataset_sources_df() -> pd.DataFrame:
     return query_df(sql)
 
 
-def import_durg_bhilai_datasets(db_path: Path = DB_PATH) -> dict:
-    """
-    Batch imports the compiled Census, OSM, and economic datasets into SQLite.
-    Prevents duplicate imports using PRIMARY KEY ON CONFLICT DO UPDATE.
-    """
-    init_database(db_path)
+def _seed_public_durg_bhilai_data(cur: sqlite3.Cursor) -> dict:
+    """Internal helper to seed compiled Census, OSM, and economic datasets using an active cursor."""
     base_dir = Path(__file__).resolve().parent.parent / "data" / "durg_bhilai"
     stats = {"demographics": 0, "localities": 0, "businesses": 0, "economic": 0, "sources": 0}
 
@@ -1843,140 +1884,148 @@ def import_durg_bhilai_datasets(db_path: Path = DB_PATH) -> dict:
     demo_file = base_dir / "demographics" / "durg_bhilai_census_demographics.csv"
     if demo_file.exists():
         df_demo = pd.read_csv(demo_file)
-        with get_db_cursor(commit=True, db_path=db_path) as cur:
-            for _, r in df_demo.iterrows():
-                cur.execute(
-                    """
-                    INSERT INTO local_demographics (
-                        demographic_id, area_name, admin_type, district, total_population,
-                        male_population, female_population, urban_population, rural_population,
-                        total_households, literacy_rate, workforce_total, main_workers,
-                        marginal_workers, cultivators, agricultural_labourers, household_industry,
-                        other_workers, census_year, source, notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(demographic_id) DO UPDATE SET
-                        total_population = excluded.total_population,
-                        literacy_rate = excluded.literacy_rate,
-                        workforce_total = excluded.workforce_total
-                    """,
-                    (
-                        r["demographic_id"], r["area_name"], r["admin_type"], r.get("district", "Durg"),
-                        int(r["total_population"]), int(r["male_population"]), int(r["female_population"]),
-                        int(r["urban_population"]), int(r["rural_population"]), int(r["total_households"]),
-                        float(r["literacy_rate"]), int(r["workforce_total"]), int(r["main_workers"]),
-                        int(r["marginal_workers"]), int(r.get("cultivators", 0)), int(r.get("agricultural_labourers", 0)),
-                        int(r.get("household_industry", 0)), int(r.get("other_workers", 0)),
-                        int(r.get("census_year", 2011)), r.get("source", ""), r.get("notes", "")
-                    )
+        for _, r in df_demo.iterrows():
+            cur.execute(
+                """
+                INSERT INTO local_demographics (
+                    demographic_id, area_name, admin_type, district, total_population,
+                    male_population, female_population, urban_population, rural_population,
+                    total_households, literacy_rate, workforce_total, main_workers,
+                    marginal_workers, cultivators, agricultural_labourers, household_industry,
+                    other_workers, census_year, source, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(demographic_id) DO UPDATE SET
+                    total_population = excluded.total_population,
+                    literacy_rate = excluded.literacy_rate,
+                    workforce_total = excluded.workforce_total
+                """,
+                (
+                    r["demographic_id"], r["area_name"], r["admin_type"], r.get("district", "Durg"),
+                    int(r["total_population"]), int(r["male_population"]), int(r["female_population"]),
+                    int(r["urban_population"]), int(r["rural_population"]), int(r["total_households"]),
+                    float(r["literacy_rate"]), int(r["workforce_total"]), int(r["main_workers"]),
+                    int(r["marginal_workers"]), int(r.get("cultivators", 0)), int(r.get("agricultural_labourers", 0)),
+                    int(r.get("household_industry", 0)), int(r.get("other_workers", 0)),
+                    int(r.get("census_year", 2011)), r.get("source", ""), r.get("notes", "")
                 )
-                stats["demographics"] += 1
+            )
+            stats["demographics"] += 1
 
     # 2. Localities Geographic
     geo_file = base_dir / "geographic" / "durg_bhilai_localities.csv"
     if geo_file.exists():
         df_geo = pd.read_csv(geo_file)
-        with get_db_cursor(commit=True, db_path=db_path) as cur:
-            for _, r in df_geo.iterrows():
-                cur.execute(
-                    """
-                    INSERT INTO local_geographic_data (
-                        geo_id, area_name, geo_type, latitude, longitude, radius_km, parent_city, district, description
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(geo_id) DO UPDATE SET
-                        latitude = excluded.latitude,
-                        longitude = excluded.longitude,
-                        radius_km = excluded.radius_km
-                    """,
-                    (
-                        r["geo_id"], r["area_name"], r["geo_type"], float(r["latitude"]),
-                        float(r["longitude"]), float(r["radius_km"]), r.get("parent_city", ""),
-                        r.get("district", "Durg"), r.get("description", "")
-                    )
+        for _, r in df_geo.iterrows():
+            cur.execute(
+                """
+                INSERT INTO local_geographic_data (
+                    geo_id, area_name, geo_type, latitude, longitude, radius_km, parent_city, district, description
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(geo_id) DO UPDATE SET
+                    latitude = excluded.latitude,
+                    longitude = excluded.longitude,
+                    radius_km = excluded.radius_km
+                """,
+                (
+                    r["geo_id"], r["area_name"], r["geo_type"], float(r["latitude"]),
+                    float(r["longitude"]), float(r["radius_km"]), r.get("parent_city", ""),
+                    r.get("district", "Durg"), r.get("description", "")
                 )
-                stats["localities"] += 1
+            )
+            stats["localities"] += 1
 
     # 3. OSM Business Directory
     biz_file = base_dir / "business_directory" / "durg_bhilai_business_directory.csv"
     if biz_file.exists():
         df_biz = pd.read_csv(biz_file)
-        with get_db_cursor(commit=True, db_path=db_path) as cur:
-            for _, r in df_biz.iterrows():
-                cur.execute(
-                    """
-                    INSERT INTO local_business_directory (
-                        business_id, osm_id, business_name, category, sub_category,
-                        latitude, longitude, locality, city, ward, district, address,
-                        source, reference_year, contact_info
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(business_id) DO UPDATE SET
-                        business_name = excluded.business_name,
-                        category = excluded.category,
-                        latitude = excluded.latitude,
-                        longitude = excluded.longitude,
-                        locality = excluded.locality
-                    """,
-                    (
-                        r["business_id"], int(r["osm_id"]) if pd.notnull(r.get("osm_id")) else None,
-                        r["business_name"], r["category"], r.get("sub_category", ""),
-                        float(r["latitude"]), float(r["longitude"]), r.get("locality", ""),
-                        r["city"], r.get("ward", ""), r.get("district", "Durg"),
-                        r.get("address", ""), r.get("source", "OpenStreetMap (ODbL 1.0)"),
-                        int(r.get("reference_year", 2024)), str(r.get("contact_info", "")) if pd.notnull(r.get("contact_info")) else ""
-                    )
+        for _, r in df_biz.iterrows():
+            cur.execute(
+                """
+                INSERT INTO local_business_directory (
+                    business_id, osm_id, business_name, category, sub_category,
+                    latitude, longitude, locality, city, ward, district, address,
+                    source, reference_year, contact_info
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(business_id) DO UPDATE SET
+                    business_name = excluded.business_name,
+                    category = excluded.category,
+                    latitude = excluded.latitude,
+                    longitude = excluded.longitude,
+                    locality = excluded.locality
+                """,
+                (
+                    r["business_id"], int(r["osm_id"]) if pd.notnull(r.get("osm_id")) else None,
+                    r["business_name"], r["category"], r.get("sub_category", ""),
+                    float(r["latitude"]), float(r["longitude"]), r.get("locality", ""),
+                    r["city"], r.get("ward", ""), r.get("district", "Durg"),
+                    r.get("address", ""), r.get("source", "OpenStreetMap (ODbL 1.0)"),
+                    int(r.get("reference_year", 2024)), str(r.get("contact_info", "")) if pd.notnull(r.get("contact_info")) else ""
                 )
-                stats["businesses"] += 1
+            )
+            stats["businesses"] += 1
 
     # 4. Economic Indicators
     econ_file = base_dir / "economic_indicators" / "durg_district_economy.csv"
     if econ_file.exists():
         df_econ = pd.read_csv(econ_file)
-        with get_db_cursor(commit=True, db_path=db_path) as cur:
-            for _, r in df_econ.iterrows():
-                cur.execute(
-                    """
-                    INSERT INTO local_economic_indicators (
-                        indicator_id, category, indicator_name, unit, indicator_value,
-                        reference_period, source, locality_scope, notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(indicator_id) DO UPDATE SET
-                        indicator_value = excluded.indicator_value,
-                        reference_period = excluded.reference_period
-                    """,
-                    (
-                        r["indicator_id"], r["category"], r["indicator_name"], r["unit"],
-                        float(r["indicator_value"]), r["reference_period"], r["source"],
-                        r.get("locality_scope", "Durg District"), r.get("notes", "")
-                    )
+        for _, r in df_econ.iterrows():
+            cur.execute(
+                """
+                INSERT INTO local_economic_indicators (
+                    indicator_id, category, indicator_name, unit, indicator_value,
+                    reference_period, source, locality_scope, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(indicator_id) DO UPDATE SET
+                    indicator_value = excluded.indicator_value,
+                    reference_period = excluded.reference_period
+                """,
+                (
+                    r["indicator_id"], r["category"], r["indicator_name"], r["unit"],
+                    float(r["indicator_value"]), r["reference_period"], r["source"],
+                    r.get("locality_scope", "Durg District"), r.get("notes", "")
                 )
-                stats["economic"] += 1
+            )
+            stats["economic"] += 1
 
     # 5. Dataset Sources
     src_file = base_dir / "metadata" / "dataset_sources.json"
     if src_file.exists():
         with open(src_file, "r", encoding="utf-8") as f:
             sources_data = json.load(f)
-        with get_db_cursor(commit=True, db_path=db_path) as cur:
-            for s in sources_data:
-                cur.execute(
-                    """
-                    INSERT INTO dataset_sources (
-                        source_id, dataset_name, source_organization, source_url,
-                        license, reference_year, coverage_area, record_count,
-                        last_verified, limitations
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(source_id) DO UPDATE SET
-                        record_count = excluded.record_count,
-                        last_verified = excluded.last_verified
-                    """,
-                    (
-                        s["source_id"], s["dataset_name"], s["source_organization"],
-                        s.get("source_url", ""), s["license"], s.get("reference_year", ""),
-                        s.get("coverage_area", ""), int(s.get("record_count", 0)),
-                        s.get("last_verified", ""), s.get("limitations", "")
-                    )
+        for s in sources_data:
+            cur.execute(
+                """
+                INSERT INTO dataset_sources (
+                    source_id, dataset_name, source_organization, source_url,
+                    license, reference_year, coverage_area, record_count,
+                    last_verified, limitations
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(source_id) DO UPDATE SET
+                    record_count = excluded.record_count,
+                    last_verified = excluded.last_verified
+                """,
+                (
+                    s["source_id"], s["dataset_name"], s["source_organization"],
+                    s.get("source_url", ""), s["license"], s.get("reference_year", ""),
+                    s.get("coverage_area", ""), int(s.get("record_count", 0)),
+                    s.get("last_verified", ""), s.get("limitations", "")
                 )
-                stats["sources"] += 1
+            )
+            stats["sources"] += 1
 
+    return stats
+
+
+def import_durg_bhilai_datasets(db_path: Path = DB_PATH) -> dict:
+    """
+    Batch imports the compiled Census, OSM, and economic datasets into SQLite.
+    Prevents duplicate imports using PRIMARY KEY ON CONFLICT DO UPDATE.
+    """
+    target = str(db_path or DB_PATH)
+    if target not in _INITIALIZED_DBS:
+        init_database(db_path)
+    with get_db_cursor(commit=True, db_path=db_path) as cur:
+        stats = _seed_public_durg_bhilai_data(cur)
     clear_db_caches()
     return stats
 

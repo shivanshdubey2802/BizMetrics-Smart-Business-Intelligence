@@ -71,6 +71,30 @@ def validate_and_clean(data):
         if d_col in data.columns:
             data[d_col] = pd.to_datetime(data[d_col], errors='coerce')
 
+    # Ensure expected inventory, loan, and financial columns exist with safe defaults if omitted
+    default_numeric_cols = {
+        'current_stock': 0.0,
+        'minimum_stock': 0.0,
+        'maximum_stock': 100.0,
+        'reorder_level': 0.0,
+        'purchase_price': 0.0,
+        'selling_price': 0.0,
+        'quantity': 1.0,
+        'discount_percent': 0.0,
+        'credit_amount': 0.0,
+        'amount': 0.0,
+        'principal_amount': 0.0,
+        'interest_rate': 0.0,
+        'monthly_emi': 0.0,
+        'outstanding_principal': 0.0,
+        'tenure_months': 0.0,
+        'total_ordered_amount': 0.0,
+        'outstanding_balance': 0.0,
+    }
+    for col, def_val in default_numeric_cols.items():
+        if col not in data.columns:
+            data[col] = pd.Series(def_val, index=data.index, dtype='float64')
+
     # Explicitly ensure receivable columns are float64 Series BEFORE assigning numeric values
     for col in ['total_amount', 'total_paid_amount', 'outstanding_amount']:
         if col in data.columns:
@@ -1010,6 +1034,9 @@ def run_pipeline(data, include_inventory_ml=False):
     return result
 
 if __name__ == "__main__":
-    df = load_master_csv("rural_business_master_data.csv")
-    res = run_pipeline(df)
-    print(res)
+    from utils.data_loader import find_master_csv, find_demo_csv
+    p = find_master_csv() or find_demo_csv()
+    if p:
+        df = pd.read_csv(p)
+        res = run_pipeline(df)
+        print("Pipeline execution succeeded on:", p.name)

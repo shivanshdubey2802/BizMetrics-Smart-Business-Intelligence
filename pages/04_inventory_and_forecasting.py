@@ -50,8 +50,8 @@ if "pipeline_result" not in st.session_state or "raw_data" not in st.session_sta
         pass
 
 if "pipeline_result" not in st.session_state:
-    st.error("BizMetrics dataset could not be found.")
-    st.info("Developer Note:\nPlace rural_business_master_data.csv in the project root or data/ directory.")
+    st.error("BizMetrics dataset could not be loaded.")
+    st.info("Upload your business dataset using the Dataset Manager in the sidebar or refresh the application.")
     st.stop()
 
 result = st.session_state["pipeline_result"]

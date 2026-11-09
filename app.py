@@ -16,8 +16,24 @@ APP_ROOT = Path(__file__).resolve().parent
 AUTH_DB_PATH = APP_ROOT / "bizmetrics_auth.db"
 SHOP_ID = "shivansh_electronics_hardware"
 SHOP_NAME = "Shivansh Electronics and Hardware"
-OWNER_NAME = os.getenv("BIZMETRICS_OWNER_NAME", "Shivansh G")
-OWNER_PASSWORD = os.getenv("BIZMETRICS_OWNER_PASSWORD", "Shivansh@1212")
+def get_secret(key: str, default: str = "") -> str:
+    """Fetch secret from st.secrets first, falling back to os.environ and finally default."""
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            val = str(st.secrets[key]).strip()
+            if val:
+                return val
+    except Exception:
+        pass
+    val = os.getenv(key)
+    if val and str(val).strip():
+        return str(val).strip()
+    return default
+
+
+IS_PROD_ENV = get_secret("BIZMETRICS_ENV", "development").lower() == "production"
+OWNER_NAME = get_secret("BIZMETRICS_OWNER_NAME", "Shivansh G")
+OWNER_PASSWORD = get_secret("BIZMETRICS_OWNER_PASSWORD", "" if IS_PROD_ENV else "Shivansh@1212")
 
 # 1. First, check and restore persistent session if token exists
 try:
@@ -473,15 +489,7 @@ def prepare_owner_session(loading_placeholder):
 
     render_owner_loading(loading_placeholder, "Preparing your business tools...", 75, "Setting up shared data for fast page navigation.")
     if "pipeline_result" not in st.session_state or "raw_data" not in st.session_state:
-        csv_path = find_master_csv()
-        if csv_path is None:
-            raise FileNotFoundError("rural_business_master_data.csv was not found.")
-        file_stat = csv_path.stat()
-        file_signature = (file_stat.st_mtime_ns, file_stat.st_size)
-        clean_df, result = get_cached_pipeline_result(str(csv_path), file_signature, include_inventory_ml=False)
-        st.session_state["raw_data"] = clean_df
-        st.session_state["pipeline_result"] = result
-        st.session_state["dataset_path"] = str(csv_path)
+        refresh_application_data(force=True)
 
     render_owner_loading(loading_placeholder, "Almost ready...", 90, "Checking the dashboard data before opening your workspace.")
     result = st.session_state.get("pipeline_result")
@@ -590,14 +598,36 @@ elif st.session_state.get("user_role") == "owner":
         shops = fetch_registered_shops()
         shop_options = {s_id: s_name for s_id, s_name in shops}
         selected_shop_name = shop_options.get(selected_shop_id, SHOP_NAME)
-        o_name = st.session_state.get("route3_owner_name", "Shivansh G").strip()
-        o_pwd = st.session_state.get("route3_owner_password", "Shivansh@1212")
+        o_name = st.session_state.get("route3_owner_name", OWNER_NAME).strip()
+        o_pwd = st.session_state.get("route3_owner_password", "")
         if not o_name or not o_pwd:
             st.session_state["login_error"] = "⚠️ Please enter both owner name and password."
             return
-        if o_name.strip().lower() in {OWNER_NAME.lower(), "shivansh", "shivansh g"} and (
-            o_pwd in {OWNER_PASSWORD, "Shivansh@1212", "shivansh@1212"}
-        ):
+
+        pwd_matched = False
+        if OWNER_PASSWORD and o_pwd == OWNER_PASSWORD:
+            pwd_matched = True
+        else:
+            try:
+                from utils.database import get_db_cursor
+                with get_db_cursor() as cur:
+                    h = hashlib.sha256(o_pwd.encode("utf-8")).hexdigest()
+                    user_row = cur.execute(
+                        "SELECT password_hash FROM users WHERE LOWER(username) = ? AND role = 'Owner'",
+                        (o_name.lower(),)
+                    ).fetchone()
+                    if user_row and user_row["password_hash"] == h:
+                        pwd_matched = True
+            except Exception:
+                pass
+
+        if not pwd_matched and not IS_PROD_ENV and not OWNER_PASSWORD:
+            if o_pwd in {"Shivansh@1212", "shivansh@1212"}:
+                pwd_matched = True
+
+        name_matched = o_name.strip().lower() in {OWNER_NAME.lower(), "shivansh", "shivansh g", "admin"}
+
+        if name_matched and pwd_matched:
             try:
                 from utils.audit_logger import log_audit_event
                 log_audit_event(o_name, "AUTH", "LOGIN", "OWNER", f"Owner {o_name} authenticated successfully", shop_id=selected_shop_id)
@@ -646,8 +676,8 @@ elif st.session_state.get("user_role") == "owner":
             st.session_state["shop_id"] = selected_shop_id
             st.session_state["shop_name"] = shop_options[selected_shop_id]
 
-            owner_name = st.text_input(t("Owner Name", lang), value="Shivansh G", placeholder="e.g. Shivansh G", key="route3_owner_name")
-            owner_password = st.text_input(t("Password", lang), value="Shivansh@1212", type="password", key="route3_owner_password")
+            owner_name = st.text_input(t("Owner Name", lang), value=OWNER_NAME, placeholder="e.g. Shivansh G", key="route3_owner_name")
+            owner_password = st.text_input(t("Password", lang), value="", type="password", placeholder="Enter password", key="route3_owner_password")
 
             if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_owner_login_route3, key="btn_route3_owner_login"):
                 if not st.session_state.get("owner_authenticated", False):
@@ -664,13 +694,6 @@ elif st.session_state.get("user_role") == "owner":
             loading_placeholder = st.empty()
             try:
                 prepare_owner_session(loading_placeholder)
-            except FileNotFoundError:
-                with loading_placeholder.container():
-                    st.error("We couldn't load your business data.")
-                    st.info("Place rural_business_master_data.csv in the project root or data/ directory.")
-                    if st.button("Try Again", type="primary"):
-                        st.rerun()
-                st.stop()
             except Exception as exc:
                 with loading_placeholder.container():
                     st.error("We couldn't prepare your BizMetrics dashboard.")
@@ -746,14 +769,36 @@ else:
         shops = fetch_registered_shops()
         shop_options = {s_id: s_name for s_id, s_name in shops}
         selected_shop_name = shop_options.get(selected_shop_id, SHOP_NAME)
-        o_name = st.session_state.get("landing_owner_name", "Shivansh G").strip()
-        o_pwd = st.session_state.get("landing_owner_password", "Shivansh@1212")
+        o_name = st.session_state.get("landing_owner_name", OWNER_NAME).strip()
+        o_pwd = st.session_state.get("landing_owner_password", "")
         if not o_name or not o_pwd:
             st.session_state["login_error"] = "⚠️ Please enter both owner name and password."
             return
-        if o_name.strip().lower() in {OWNER_NAME.lower(), "shivansh", "shivansh g"} and (
-            o_pwd in {OWNER_PASSWORD, "Shivansh@1212", "shivansh@1212"}
-        ):
+
+        pwd_matched = False
+        if OWNER_PASSWORD and o_pwd == OWNER_PASSWORD:
+            pwd_matched = True
+        else:
+            try:
+                from utils.database import get_db_cursor
+                with get_db_cursor() as cur:
+                    h = hashlib.sha256(o_pwd.encode("utf-8")).hexdigest()
+                    user_row = cur.execute(
+                        "SELECT password_hash FROM users WHERE LOWER(username) = ? AND role = 'Owner'",
+                        (o_name.lower(),)
+                    ).fetchone()
+                    if user_row and user_row["password_hash"] == h:
+                        pwd_matched = True
+            except Exception:
+                pass
+
+        if not pwd_matched and not IS_PROD_ENV and not OWNER_PASSWORD:
+            if o_pwd in {"Shivansh@1212", "shivansh@1212"}:
+                pwd_matched = True
+
+        name_matched = o_name.strip().lower() in {OWNER_NAME.lower(), "shivansh", "shivansh g", "admin"}
+
+        if name_matched and pwd_matched:
             try:
                 from utils.audit_logger import log_audit_event
                 log_audit_event(o_name, "AUTH", "LOGIN", "OWNER", f"Owner {o_name} authenticated successfully", shop_id=selected_shop_id)
@@ -817,8 +862,8 @@ else:
 
         if login_type == "Owner":
             st.markdown(f"### {t('OWNER LOGIN', lang)}")
-            owner_name = st.text_input(t("Owner Name", lang), value="Shivansh G", placeholder="e.g. Shivansh G", key="landing_owner_name")
-            owner_password = st.text_input(t("Password", lang), value="Shivansh@1212", type="password", key="landing_owner_password")
+            owner_name = st.text_input(t("Owner Name", lang), value=OWNER_NAME, placeholder="e.g. Shivansh G", key="landing_owner_name")
+            owner_password = st.text_input(t("Password", lang), value="", type="password", placeholder="Enter password", key="landing_owner_password")
             if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_owner_login_route4, key="btn_landing_owner_login"):
                 if not st.session_state.get("owner_authenticated", False):
                     handle_owner_login_route4()
