@@ -1,8 +1,8 @@
 # ==============================================================================
-# BizMetrics - Production .gitignore for GitHub Release
+# BizMetrics – Production .gitignore for GitHub Release
 # ==============================================================================
 
-# 1. Environment variables & Secret Keys
+# 1. Environment Variables & Secret Keys
 .env
 .env.*
 !.env.example
@@ -13,7 +13,7 @@ secrets.toml
 *.key
 *.crt
 
-# 2. SQLite Relational Databases & WAL / SHM files (Live Credentials & Sessions)
+# 2. SQLite Relational Databases & WAL / SHM Files (Live Credentials & Sessions)
 *.db
 *.db-shm
 *.db-wal
@@ -98,11 +98,31 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# 10. Node / npm artifacts
+# 10. Node / npm Artifacts
 node_modules/
 package-lock.json
 
-# 11. Obsolete Duplicates & Raw Ingestion Dumps
+# 11. Private Operational Datasets & Customer Ledgers (Local Only - Never Commit)
+01_business_profile.csv
+data/01_business_profile.csv
+02_products_inventory.csv
+data/02_products_inventory.csv
+03_sales_transactions.csv
+data/03_sales_transactions.csv
+04_expenses.csv
+data/04_expenses.csv
+05_customers_receivables.csv
+data/05_customers_receivables.csv
+06_vendors_payables.csv
+data/06_vendors_payables.csv
+07_loans_emi.csv
+data/07_loans_emi.csv
+rural_business_master_data.csv
+data/rural_business_master_data.csv
 dataural_business_master_data.csv
 BizMetrics_realistic_inventory_12_SKUs.csv
 data/durg_bhilai/raw/
+
+# 12. Generated Machine Learning Model Caches & Binary Artifacts
+models/demand_model_*.joblib
+*.joblib
