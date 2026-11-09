@@ -6,11 +6,13 @@ and unified querying across all application modules.
 
 from __future__ import annotations
 
+import datetime
 import hashlib
 import json
 import os
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Generator
@@ -1311,6 +1313,406 @@ def import_all_csvs(db_path: Path | str | None = None) -> dict[str, Any]:
             shutil.copy2(target_path, AUTH_DB_PATH)
         except Exception:
             pass
+
+    return summary
+
+
+def import_master_df_to_database(
+    df: pd.DataFrame,
+    shop_id: str = DEFAULT_SHOP_ID,
+    username: str = "Shivansh G",
+    file_name: str = "uploaded_dataset.csv",
+    db_path: Path | str | None = None,
+) -> dict[str, Any]:
+    """
+    Imports a consolidated business master DataFrame (such as the 59-column canonical schema
+    or custom sales/customer CSV) into SQLite database tables atomically.
+    Preserves existing records, prevents duplicates via primary keys and ON CONFLICT handling,
+    and returns an accurate summary of imported, duplicate, and error records.
+    """
+    init_database(db_path)
+    if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+        return {
+            "status": "error",
+            "imported": 0,
+            "duplicates": 0,
+            "errors": 1,
+            "breakdown": {},
+            "message": "Provided dataset is empty.",
+        }
+
+    summary: dict[str, Any] = {
+        "status": "success",
+        "imported": 0,
+        "duplicates": 0,
+        "errors": 0,
+        "breakdown": {
+            "customers": 0,
+            "products": 0,
+            "inventory": 0,
+            "sales_transactions": 0,
+            "expenses": 0,
+            "loans": 0,
+            "vendors": 0,
+            "shops": 0,
+        },
+        "message": "",
+    }
+
+    col_map = {str(c).strip().lower(): c for c in df.columns}
+
+    def _row_val(row, *aliases, default=""):
+        for a in aliases:
+            k = a.strip().lower()
+            if k in col_map:
+                v = row.get(col_map[k])
+                if v is not None and not pd.isna(v) and str(v).strip().lower() != "nan":
+                    return str(v).strip()
+        return default
+
+    def _row_num(row, *aliases, default=0.0):
+        v = _row_val(row, *aliases, default="")
+        if not v:
+            return default
+        try:
+            return float(str(v).replace("₹", "").replace(",", "").replace("%", "").strip())
+        except (ValueError, TypeError):
+            return default
+
+    import_id = f"IMP-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:4].upper()}"
+
+    with get_db_cursor(commit=True, db_path=db_path) as cur:
+        has_record_type = "record_type" in col_map
+
+        for _, r in df.iterrows():
+            rec_type = _row_val(r, "record_type", default="").lower()
+
+            try:
+                # 1. BUSINESS PROFILE RECORD
+                if rec_type in ("business", "shop"):
+                    s_name = _row_val(r, "shop_name", "business_name", default=DEFAULT_SHOP_NAME)
+                    o_name = _row_val(r, "owner_name", default=DEFAULT_OWNER_NAME)
+                    ph = _row_val(r, "contact_number", "phone", "mobile_number", default="+91 98765 43210")
+                    addr = _row_val(r, "address", "city", default="Raipur, Chhattisgarh")
+                    cur.execute(
+                        """
+                        INSERT INTO shops (shop_id, shop_name, owner_name, phone, address)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(shop_id) DO UPDATE SET
+                            shop_name = excluded.shop_name,
+                            owner_name = excluded.owner_name,
+                            phone = excluded.phone,
+                            address = excluded.address
+                        """,
+                        (shop_id, s_name, o_name, ph, addr),
+                    )
+                    summary["breakdown"]["shops"] += 1
+                    summary["imported"] += 1
+                    continue
+
+                # 2. CUSTOMER & RECEIVABLES RECORD
+                cid = _row_val(r, "customer_id", "customerid")
+                cname = _row_val(r, "customer_name", "customername")
+                if rec_type in ("customer", "receivable") or (not has_record_type and cid and (cname or _row_val(r, "outstanding_amount"))):
+                    if cid:
+                        cname = cname or f"Customer {cid}"
+                        bname = _row_val(r, "business_name")
+                        contact = _row_val(r, "contact_number", "mobile_number", "phone")
+                        email = _row_val(r, "email")
+                        city = _row_val(r, "city", default="Raipur")
+                        ctype = _row_val(r, "customer_type", default="Retail Customer")
+                        reg_date = _row_val(r, "registration_date", "date", default=pd.Timestamp.today().strftime("%Y-%m-%d"))
+                        rating = _row_num(r, "customer_rating", default=4.5)
+                        out_amt = _row_num(r, "outstanding_amount", "credit_amount", default=0.0)
+
+                        ex = cur.execute("SELECT 1 FROM customers WHERE customer_id = ?", (cid,)).fetchone()
+                        if ex:
+                            summary["duplicates"] += 1
+                        else:
+                            summary["imported"] += 1
+
+                        cur.execute(
+                            """
+                            INSERT INTO customers (customer_id, shop_id, customer_name, business_name, contact_number, email, city, customer_type, registration_date, customer_rating, outstanding_amount)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(customer_id) DO UPDATE SET
+                                customer_name = excluded.customer_name,
+                                business_name = excluded.business_name,
+                                contact_number = excluded.contact_number,
+                                email = excluded.email,
+                                outstanding_amount = excluded.outstanding_amount
+                            """,
+                            (cid, shop_id, cname, bname, contact, email, city, ctype, reg_date, rating, out_amt),
+                        )
+                        p_hash = hashlib.sha256(cid.encode("utf-8")).hexdigest()
+                        cur.execute(
+                            """
+                            INSERT INTO customer_credentials (shop_id, customer_id, customer_name, password_hash)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT(shop_id, customer_id) DO UPDATE SET customer_name = excluded.customer_name
+                            """,
+                            (shop_id, cid, cname, p_hash),
+                        )
+                        summary["breakdown"]["customers"] += 1
+                        if rec_type in ("customer", "receivable"):
+                            continue
+
+                # 3. PRODUCT & INVENTORY RECORD
+                pid = _row_val(r, "product_id", "productid", "sku")
+                pname = _row_val(r, "product_name", "product")
+                if rec_type in ("inventory", "product") or (not has_record_type and pid and (pname or _row_val(r, "purchase_price") or _row_val(r, "current_stock"))):
+                    if pid:
+                        pname = pname or f"Product {pid}"
+                        cat = _row_val(r, "category", default="Hardware & Electricals")
+                        sector = _row_val(r, "sector", default="Retail")
+                        unit = _row_val(r, "unit", default="Piece")
+                        pur_price = _row_num(r, "purchase_price", "cost_price", default=0.0)
+                        sel_price = _row_num(r, "selling_price", "price", default=pur_price * 1.25)
+                        desc = _row_val(r, "description", default=f"{pname} ({cat})")
+                        supp_id = _row_val(r, "supplier_id", "vendor_id", default="SUP-001")
+                        lead_days = int(_row_num(r, "lead_time_days", default=5))
+                        curr_stock = _row_num(r, "current_stock", "quantity", default=50.0)
+                        min_stock = _row_num(r, "minimum_stock", default=10.0)
+                        max_stock = _row_num(r, "maximum_stock", default=200.0)
+                        reorder_lvl = _row_num(r, "reorder_level", default=20.0)
+                        status = _row_val(r, "status", default="Healthy")
+
+                        # Ensure supplier exists
+                        cur.execute(
+                            """
+                            INSERT OR IGNORE INTO vendors (vendor_id, shop_id, vendor_name, material_type)
+                            VALUES (?, ?, ?, ?)
+                            """,
+                            (supp_id, shop_id, f"Supplier {supp_id}", cat),
+                        )
+
+                        ex = cur.execute("SELECT 1 FROM products WHERE product_id = ?", (pid,)).fetchone()
+                        if ex:
+                            summary["duplicates"] += 1
+                        else:
+                            summary["imported"] += 1
+
+                        cur.execute(
+                            """
+                            INSERT INTO products (product_id, shop_id, product_name, category, sector, unit, purchase_price, selling_price, description, supplier_id, lead_time_days)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(product_id) DO UPDATE SET
+                                product_name = excluded.product_name,
+                                category = excluded.category,
+                                purchase_price = excluded.purchase_price,
+                                selling_price = excluded.selling_price
+                            """,
+                            (pid, shop_id, pname, cat, sector, unit, pur_price, sel_price, desc, supp_id, lead_days),
+                        )
+                        cur.execute(
+                            """
+                            INSERT INTO inventory (shop_id, product_id, current_stock, minimum_stock, maximum_stock, reorder_level, status)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(product_id) DO UPDATE SET
+                                current_stock = excluded.current_stock,
+                                status = excluded.status
+                            """,
+                            (shop_id, pid, curr_stock, min_stock, max_stock, reorder_lvl, status),
+                        )
+                        summary["breakdown"]["products"] += 1
+                        summary["breakdown"]["inventory"] += 1
+                        if rec_type in ("inventory", "product"):
+                            continue
+
+                # 4. SALES TRANSACTIONS RECORD
+                sid = _row_val(r, "sale_id", "saleid", "order_id", "transaction_id")
+                if rec_type in ("sale", "sales", "transaction") or (not has_record_type and (sid or (_row_val(r, "total_amount") and (cid or pid)))):
+                    date_val = _row_val(r, "date", default=pd.Timestamp.today().strftime("%Y-%m-%d"))
+                    c_id_sale = cid or _row_val(r, "customer_id", default="CUST001")
+                    p_id_sale = pid or _row_val(r, "product_id", default="PROD-GEN-01")
+                    qty = _row_num(r, "quantity", "qty", default=1.0)
+                    sp = _row_num(r, "selling_price", "price", default=0.0)
+                    disc = _row_num(r, "discount_percent", default=0.0)
+                    tot_amt = _row_num(r, "total_amount", "amount", default=max(0.0, qty * sp * (1.0 - disc / 100.0)))
+                    if sp == 0.0 and tot_amt > 0.0 and qty > 0.0:
+                        sp = tot_amt / qty
+                    pay_mode = _row_val(r, "payment_mode", default="Cash")
+                    pay_status = _row_val(r, "payment_status", default="Completed")
+                    credit_amt = _row_num(r, "credit_amount", default=(tot_amt if pay_status.lower() in ("pending", "unpaid") else 0.0))
+                    notes = _row_val(r, "notes", default="Imported Transaction")
+
+                    if not sid:
+                        hash_src = f"{c_id_sale}_{p_id_sale}_{date_val}_{qty}_{tot_amt}"
+                        sid = f"SALE-{hashlib.md5(hash_src.encode('utf-8')).hexdigest()[:8].upper()}"
+
+                    # Ensure customer exists
+                    cur.execute(
+                        """
+                        INSERT OR IGNORE INTO customers (customer_id, shop_id, customer_name, city)
+                        VALUES (?, ?, ?, 'Raipur')
+                        """,
+                        (c_id_sale, shop_id, f"Customer {c_id_sale}"),
+                    )
+                    # Ensure product exists
+                    cur.execute(
+                        """
+                        INSERT OR IGNORE INTO products (product_id, shop_id, product_name, category, purchase_price, selling_price)
+                        VALUES (?, ?, ?, 'General Hardware', ?, ?)
+                        """,
+                        (p_id_sale, shop_id, f"Product {p_id_sale}", sp * 0.8, sp),
+                    )
+
+                    ex = cur.execute("SELECT 1 FROM sales_transactions WHERE sale_id = ?", (sid,)).fetchone()
+                    if ex:
+                        summary["duplicates"] += 1
+                    else:
+                        summary["imported"] += 1
+
+                    cur.execute(
+                        """
+                        INSERT INTO sales_transactions (sale_id, shop_id, date, customer_id, product_id, quantity, selling_price, discount_percent, total_amount, payment_mode, payment_status, credit_amount, notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(sale_id) DO UPDATE SET
+                            total_amount = excluded.total_amount,
+                            payment_status = excluded.payment_status,
+                            credit_amount = excluded.credit_amount
+                        """,
+                        (sid, shop_id, date_val, c_id_sale, p_id_sale, qty, sp, disc, tot_amt, pay_mode, pay_status, credit_amt, notes),
+                    )
+                    summary["breakdown"]["sales_transactions"] += 1
+                    continue
+
+                # 5. EXPENSE RECORD
+                if rec_type in ("expense", "expenses"):
+                    eid = _row_val(r, "expense_id", default=f"EXP-{uuid.uuid4().hex[:6].upper()}")
+                    edate = _row_val(r, "date", default=pd.Timestamp.today().strftime("%Y-%m-%d"))
+                    ecat = _row_val(r, "category", default="Operational")
+                    edesc = _row_val(r, "description", default="Business Expense")
+                    eamt = _row_num(r, "amount", default=0.0)
+                    emode = _row_val(r, "payment_mode", default="Cash")
+                    efixed = _row_val(r, "is_fixed", default="No")
+
+                    ex = cur.execute("SELECT 1 FROM expenses WHERE expense_id = ?", (eid,)).fetchone()
+                    if ex:
+                        summary["duplicates"] += 1
+                    else:
+                        summary["imported"] += 1
+
+                    cur.execute(
+                        """
+                        INSERT INTO expenses (expense_id, shop_id, date, category, description, amount, payment_mode, is_fixed)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(expense_id) DO UPDATE SET amount = excluded.amount
+                        """,
+                        (eid, shop_id, edate, ecat, edesc, eamt, emode, efixed),
+                    )
+                    summary["breakdown"]["expenses"] += 1
+                    continue
+
+                # 6. LOAN RECORD
+                if rec_type in ("loan", "loans"):
+                    lid = _row_val(r, "loan_id", default=f"LOAN-{uuid.uuid4().hex[:6].upper()}")
+                    lprov = _row_val(r, "loan_provider", default="SBI")
+                    lprin = _row_num(r, "principal_amount", default=500000.0)
+                    lrate = _row_num(r, "interest_rate", default=10.5)
+                    ltenure = int(_row_num(r, "tenure_months", default=24))
+                    lemi = _row_num(r, "monthly_emi", default=lprin / max(1, ltenure))
+                    lout = _row_num(r, "outstanding_principal", default=lprin)
+                    lstart = _row_val(r, "start_date", default="2024-01-01")
+                    lnext = _row_val(r, "next_due_date", default="2026-12-01")
+                    ltype = _row_val(r, "loan_type", default="Term Loan")
+
+                    ex = cur.execute("SELECT 1 FROM loans_emi WHERE loan_id = ?", (lid,)).fetchone()
+                    if ex:
+                        summary["duplicates"] += 1
+                    else:
+                        summary["imported"] += 1
+
+                    cur.execute(
+                        """
+                        INSERT INTO loans_emi (loan_id, shop_id, loan_provider, principal_amount, interest_rate, tenure_months, monthly_emi, outstanding_principal, start_date, next_due_date, loan_type)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(loan_id) DO UPDATE SET outstanding_principal = excluded.outstanding_principal
+                        """,
+                        (lid, shop_id, lprov, lprin, lrate, ltenure, lemi, lout, lstart, lnext, ltype),
+                    )
+                    summary["breakdown"]["loans"] += 1
+                    continue
+
+                # 7. VENDOR / PAYABLE RECORD
+                if rec_type in ("vendor", "vendors", "payable", "payables"):
+                    vid = _row_val(r, "vendor_id", default=f"VEND-{uuid.uuid4().hex[:6].upper()}")
+                    vname = _row_val(r, "vendor_name", default=f"Vendor {vid}")
+                    vmat = _row_val(r, "material_type", default="Hardware")
+                    vtord = _row_num(r, "total_ordered_amount", default=0.0)
+                    vtpaid = _row_num(r, "total_paid_amount", default=0.0)
+                    vout = _row_num(r, "outstanding_balance", default=max(0.0, vtord - vtpaid))
+                    vnext = _row_val(r, "next_payment_date", default="2026-12-01")
+                    vdays = int(_row_num(r, "credit_days_allowed", default=30))
+
+                    ex = cur.execute("SELECT 1 FROM vendors WHERE vendor_id = ?", (vid,)).fetchone()
+                    if ex:
+                        summary["duplicates"] += 1
+                    else:
+                        summary["imported"] += 1
+
+                    cur.execute(
+                        """
+                        INSERT INTO vendors (vendor_id, shop_id, vendor_name, material_type, total_ordered_amount, total_paid_amount, outstanding_balance, next_payment_date, credit_days_allowed)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(vendor_id) DO UPDATE SET
+                            vendor_name = excluded.vendor_name,
+                            total_ordered_amount = excluded.total_ordered_amount,
+                            outstanding_balance = excluded.outstanding_balance
+                        """,
+                        (vid, shop_id, vname, vmat, vtord, vtpaid, vout, vnext, vdays),
+                    )
+                    summary["breakdown"]["vendors"] += 1
+                    continue
+
+            except Exception as exc:
+                summary["errors"] += 1
+
+        # Atomically record import log
+        try:
+            cur.execute(
+                """
+                INSERT INTO import_logs (
+                    import_id, shop_id, file_name, file_type, target_table, total_rows,
+                    imported_rows, duplicate_rows, error_rows, status, error_details, imported_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    import_id,
+                    shop_id,
+                    file_name,
+                    "CSV",
+                    "master_consolidated",
+                    len(df),
+                    summary["imported"],
+                    summary["duplicates"],
+                    summary["errors"],
+                    "Completed" if summary["errors"] == 0 else "Completed with warnings",
+                    f"Imported {summary['imported']} rows, {summary['duplicates']} duplicates updated, {summary['errors']} errors",
+                    username,
+                ),
+            )
+        except Exception:
+            pass
+
+    summary["message"] = (
+        f"Imported {summary['imported']} records, updated/preserved {summary['duplicates']} existing records "
+        f"({summary['errors']} errors/skipped)."
+    )
+
+    try:
+        from utils.audit_logger import log_audit_event
+        log_audit_event(
+            username=username,
+            action_type="IMPORT",
+            entity_type="DATASET_CSV",
+            entity_id=import_id,
+            details=f"Master CSV import from {file_name}: {summary['message']}",
+            shop_id=shop_id,
+        )
+    except Exception:
+        pass
 
     return summary
 

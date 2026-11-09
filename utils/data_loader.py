@@ -358,7 +358,15 @@ def render_dataset_status_banner():
 
 
 def render_dataset_uploader_widget(in_sidebar: bool = True):
-    """Renders a clean file uploader for user custom business CSVs without status banners or demo badges."""
+    """
+    Renders a robust Dataset Manager widget with:
+    - 59-column canonical schema validation & structure preview
+    - Explicit Import/Confirm action to database
+    - Mapping to SQLite tables (customers, sales_transactions, products, inventory, receivables, etc.)
+    - Duplicate prevention & preservation of existing records
+    - Persistent storage of uploaded files
+    - Detailed import summary report (imported, skipped, errors)
+    """
     with st.expander("📁 Dataset Manager", expanded=False):
         uploaded = st.file_uploader(
             "Upload Business CSV",
@@ -368,14 +376,76 @@ def render_dataset_uploader_widget(in_sidebar: bool = True):
         )
 
         if uploaded is not None:
-            if st.session_state.get("dataset_name") != uploaded.name:
-                with st.spinner("Validating and analyzing dataset..."):
-                    success, msg = load_uploaded_dataset(uploaded)
-                    if success:
-                        st.success(f"✓ Loaded {uploaded.name} ({len(st.session_state['raw_data'])} rows)!")
-                        st.rerun()
+            try:
+                if hasattr(uploaded, "seek"):
+                    uploaded.seek(0)
+                preview_df = pd.read_csv(uploaded, dtype=str)
+            except Exception as exc:
+                st.error(f"❌ Failed to parse CSV: {exc}")
+                preview_df = None
+
+            if preview_df is not None:
+                is_valid, err_msg = validate_uploaded_dataset(preview_df)
+                if not is_valid:
+                    st.error(f"❌ {err_msg}")
+                else:
+                    from utils.database import CONSOLIDATED_MASTER_COLUMNS, import_master_df_to_database
+                    cols_lower = {str(c).strip().lower() for c in preview_df.columns}
+                    matched_canonical = sum(1 for col in CONSOLIDATED_MASTER_COLUMNS if col.lower() in cols_lower)
+                    is_canonical = (matched_canonical == len(CONSOLIDATED_MASTER_COLUMNS))
+
+                    st.markdown(f"📄 **Selected:** `{uploaded.name}`")
+                    if is_canonical:
+                        st.caption(f"✓ Verified canonical 59-column schema ({len(preview_df)} records)")
                     else:
-                        st.error(f"❌ {msg}")
+                        st.caption(f"✓ Valid business structure ({matched_canonical}/59 canonical columns matched, {len(preview_df)} records)")
+
+                    st.dataframe(preview_df.head(3), height=110, use_container_width=True)
+
+                    btn_label = f"📥 Import {len(preview_df)} Records to Database"
+                    if st.button(btn_label, key="btn_confirm_dataset_import", type="primary", use_container_width=True):
+                        with st.spinner("Importing records into database & synchronizing..."):
+                            # 1. Save to persistent storage
+                            uploads_dir = APP_ROOT / "data" / "uploads"
+                            uploads_dir.mkdir(parents=True, exist_ok=True)
+                            persisted_path = uploads_dir / uploaded.name
+                            try:
+                                uploaded.seek(0)
+                                with open(persisted_path, "wb") as f:
+                                    f.write(uploaded.getbuffer())
+                            except Exception:
+                                pass
+
+                            # 2. Import into SQLite database atomically
+                            shop_id = st.session_state.get("shop_id", "shivansh_electronics_hardware")
+                            username = st.session_state.get("username", "Shivansh G")
+                            summary = import_master_df_to_database(
+                                preview_df,
+                                shop_id=shop_id,
+                                username=username,
+                                file_name=uploaded.name,
+                            )
+                            st.session_state["last_dataset_import_summary"] = summary
+
+                            # 3. Load into active session pipeline
+                            uploaded.seek(0)
+                            load_uploaded_dataset(uploaded)
+                            st.success(f"✓ {summary['message']}")
+                            st.rerun()
+
+        if "last_dataset_import_summary" in st.session_state and st.session_state["last_dataset_import_summary"]:
+            last_summary = st.session_state["last_dataset_import_summary"]
+            st.markdown(
+                f"""
+                <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 6px; padding: 6px 10px; margin-top: 6px; font-size: 0.8rem; color: #166534;">
+                    <strong>✓ Import Summary:</strong><br>
+                    • Imported: {last_summary.get('imported', 0)} records<br>
+                    • Duplicates updated: {last_summary.get('duplicates', 0)} records<br>
+                    • Skipped/Errors: {last_summary.get('errors', 0)}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         if "dataset_upload_error" in st.session_state and st.session_state["dataset_upload_error"]:
             st.error(f"❌ {st.session_state['dataset_upload_error']}")
@@ -383,6 +453,7 @@ def render_dataset_uploader_widget(in_sidebar: bool = True):
         if st.session_state.get("dataset_mode") == DATASET_MODE_UPLOADED:
             if st.button("↺ Reset to Default Dataset", key="btn_reset_dataset_source", use_container_width=True):
                 reset_to_default_dataset()
+                st.session_state.pop("last_dataset_import_summary", None)
                 st.rerun()
 
 

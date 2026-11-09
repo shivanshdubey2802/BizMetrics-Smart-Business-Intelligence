@@ -123,6 +123,18 @@ def render_customer_portal():
             return hinglish if hinglish else t(en, "Hinglish")
         return t(en, "English")
 
+    # Ensure database migrations and data loading are initialized before querying
+    try:
+        from utils.database import init_database
+        init_database()
+    except Exception:
+        pass
+    try:
+        from utils.data_loader import refresh_application_data
+        refresh_application_data()
+    except Exception:
+        pass
+
     # Render Customer Sidebar Navigation
     from components.sidebar import render_customer_sidebar, CUSTOMER_NAV_ITEMS
     render_customer_sidebar()
@@ -151,18 +163,21 @@ def render_customer_portal():
     all_cust_ids = [c["id"] for c in all_customers]
 
     # Customer Security & Identification
-    # If authenticated as a customer, lock to their account (Customer A cannot access Customer B)
+    # If authenticated as a customer, strictly lock to their own authenticated account (Customer A cannot access Customer B)
     is_cust_role = (st.session_state.get("user_role") == "customer") and not st.session_state.get("owner_authenticated", False)
     auth_cust_id = st.session_state.get("customer_id")
 
-    if is_cust_role and auth_cust_id in all_cust_ids:
-        st.session_state["current_customer_id"] = auth_cust_id
+    if is_cust_role:
+        current_id = auth_cust_id or "CUST001"
+        st.session_state["current_customer_id"] = current_id
     elif "current_customer_id" not in st.session_state:
         st.session_state["current_customer_id"] = auth_cust_id if (auth_cust_id in all_cust_ids) else (all_cust_ids[0] if all_cust_ids else "CUST001")
+        current_id = st.session_state["current_customer_id"]
     elif st.session_state["current_customer_id"] not in all_cust_ids and all_cust_ids:
         st.session_state["current_customer_id"] = all_cust_ids[0]
-
-    current_id = st.session_state["current_customer_id"]
+        current_id = st.session_state["current_customer_id"]
+    else:
+        current_id = st.session_state["current_customer_id"]
 
     # Customer Account Switcher / Direct Lookup Bar
     if is_cust_role:
@@ -273,7 +288,13 @@ def render_customer_portal():
         "Outstanding": "Outstanding Dues",
         "Payments & Outstanding": "Outstanding Dues",
         "Dues": "Outstanding Dues",
-        "EMI Details": "Outstanding Dues",
+        "EMI Details": "EMI Details",
+        "EMI": "EMI Details",
+        "Khata EMI": "EMI Details",
+        "Overview": "Dashboard",
+        "My Orders": "Order History",
+        "Payments & Invoices": "Digital Invoices",
+        "Digital QR / Check-in": "QR Code Pass",
         "QR Code Pass": "QR Code Pass",
         "QR Code": "QR Code Pass",
         "Customer QR Code": "QR Code Pass",
@@ -544,7 +565,7 @@ def render_customer_portal():
         with rec_c1:
             st.markdown(f"**{tr('Recent Orders', 'हाल के ऑर्डर')} (Top 5)**")
             if bills.empty:
-                st.info(tr("No orders placed yet.", "अभी तक कोई ऑर्डर नहीं दिया गया है।"))
+                st.info(tr("No purchase history available yet.", "अभी कोई खरीदारी इतिहास उपलब्ध नहीं है।"))
             else:
                 recent_bills = bills.head(5).copy()
                 r_disp = pd.DataFrame()
@@ -766,7 +787,7 @@ def render_customer_portal():
         st.caption(tr("Search, inspect, and track all verified orders, invoices, and fulfillment timelines for this account.", "इस खाते के सभी ऑर्डर, इनवॉइस और डिलीवरी स्थिति ट्रैक करें।"))
 
         if bills.empty:
-            st.info(tr("No transactions found for this customer.", "इस ग्राहक के लिए कोई लेन-देन नहीं मिला।"))
+            st.info(tr("No purchase history available yet.", "अभी कोई खरीदारी इतिहास उपलब्ध नहीं है।"))
         else:
             status_filter_type = st.radio(
                 "Filter Orders",
@@ -932,7 +953,7 @@ def render_customer_portal():
         st.caption(tr("Select any transaction to preview, generate, and download an official GST-compliant PDF invoice.", "विस्तृत इनवॉइस देखने और आधिकारिक जीएसटी पीडीएफ डाउनलोड करने के लिए लेन-देन चुनें।"))
 
         if bills.empty:
-            st.info(tr("No invoices found for this customer.", "इस ग्राहक के लिए कोई इनवॉइस नहीं मिली।"))
+            st.info(tr("No purchase history available yet.", "अभी कोई खरीदारी इतिहास उपलब्ध नहीं है।"))
         else:
             bill_list = bills["Sale_ID"].dropna().unique().tolist()
             selected_bill_id = st.selectbox(
