@@ -47,8 +47,7 @@ if "pipeline_result" not in st.session_state or "raw_data" not in st.session_sta
         pass
 
 if "pipeline_result" not in st.session_state:
-    st.error("BizMetrics dataset could not be loaded.")
-    st.info("Upload your business dataset using the Dataset Manager in the sidebar or refresh the application.")
+    st.error("BizMetrics application data could not be loaded. Please refresh the page.")
     st.stop()
 
 result = st.session_state["pipeline_result"]
@@ -146,21 +145,6 @@ st.markdown(
     </style>
     """,
     unsafe_allow_html=True,
-)
-
-# Provenance Label (Requirement 2 & 4)
-st.markdown(
-    """
-    <div class="provenance-box">
-        <div>
-            <strong>Ledger Source:</strong> Gupta Hardware Mart / Shivansh Electronics Customer Accounts (Actual Business Records)
-        </div>
-        <div style="color: #0D9488; font-weight: 600;">
-            ● Active Customer Ledger • 36 Accounts
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
 )
 
 # ==============================================================================

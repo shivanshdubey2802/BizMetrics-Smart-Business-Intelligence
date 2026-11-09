@@ -169,15 +169,13 @@ with tab_provenance:
     osm_data = benchmarks.get("osm_data", {})
     credit_risk = benchmarks.get("credit_risk", pd.DataFrame())
     
-    from utils.data_loader import get_dataset_provenance
-    active_prov = get_dataset_provenance()
     prov_records = [
         {
             "Dataset Layer": "Active Business Records",
-            "File Location": active_prov.get("path") or active_prov.get("name") or "Primary Ledger",
-            "Classification": active_prov.get("status_label", "Operational Business Data"),
+            "File Location": "Primary Store Ledger",
+            "Classification": "Operational Business Data",
             "Total Records": f"{len(raw_data):,} rows",
-            "License / Source": "Uploaded / Local Business Records" if not active_prov.get("is_demo") else "Non-Sensitive Synthetic Demo (BizMetrics)"
+            "License / Source": "Business Ledger Records"
         },
         {
             "Dataset Layer": "Retail Demand Benchmark",

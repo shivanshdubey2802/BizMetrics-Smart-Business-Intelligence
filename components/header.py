@@ -125,11 +125,4 @@ def render_header(title_key, description_key, badge_type=None):
             
     render_html("<hr style='border: none; border-top: 1px solid #E2E8F0; margin: 0.5rem 0 1.25rem 0;'>")
 
-    # Render dataset provenance and demo mode status banner
-    try:
-        from utils.data_loader import render_dataset_status_banner
-        render_dataset_status_banner()
-    except Exception:
-        pass
-
 

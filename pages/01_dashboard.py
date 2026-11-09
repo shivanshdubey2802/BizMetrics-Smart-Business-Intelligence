@@ -52,8 +52,7 @@ if "pipeline_result" not in st.session_state or "raw_data" not in st.session_sta
         pass
 
 if "pipeline_result" not in st.session_state:
-    st.error("BizMetrics dataset could not be loaded.")
-    st.info("Upload your business dataset using the Dataset Manager in the sidebar or refresh the application.")
+    st.error("BizMetrics application data could not be loaded. Please refresh the page.")
     st.stop()
 
 result = st.session_state["pipeline_result"]

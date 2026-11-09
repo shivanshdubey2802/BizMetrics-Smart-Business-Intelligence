@@ -589,7 +589,7 @@ def render_sidebar():
 
         lang = get_current_language()
 
-        # Dataset Manager Widget (File Uploader & Provenance Badge)
+        # Dataset Manager Widget (File Uploader without status or demo badges)
         try:
             from utils.data_loader import render_dataset_uploader_widget
             render_dataset_uploader_widget(in_sidebar=True)

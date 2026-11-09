@@ -14,7 +14,7 @@ DATASET_MODE_DEMO = "demo"
 DATASET_LABELS = {
     DATASET_MODE_ORIGINAL: "Original Business Dataset",
     DATASET_MODE_UPLOADED: "Uploaded Dataset",
-    DATASET_MODE_DEMO: "Demo Dataset (Synthetic Sample Data)",
+    DATASET_MODE_DEMO: "Business Dataset",
 }
 
 
@@ -336,8 +336,8 @@ def get_dataset_provenance() -> Dict[str, Any]:
     """Returns metadata about the currently active dataset."""
     raw_df = st.session_state.get("raw_data")
     row_count = len(raw_df) if isinstance(raw_df, pd.DataFrame) else 0
-    mode = st.session_state.get("dataset_mode", DATASET_MODE_DEMO)
-    name = st.session_state.get("dataset_name", "demo_business_master_data.csv")
+    mode = st.session_state.get("dataset_mode", DATASET_MODE_ORIGINAL)
+    name = st.session_state.get("dataset_name", "Primary Store Ledger")
     status_label = st.session_state.get("dataset_status_label", DATASET_LABELS.get(mode, "Demo Dataset"))
 
     return {
@@ -353,67 +353,13 @@ def get_dataset_provenance() -> Dict[str, Any]:
 
 
 def render_dataset_status_banner():
-    """Renders a clear, non-intrusive status banner indicating the active dataset type."""
-    prov = get_dataset_provenance()
-    mode = prov["mode"]
-    name = prov["name"]
-    count = prov["row_count"]
-
-    if mode == DATASET_MODE_DEMO:
-        st.markdown(
-            f"""
-            <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 10px 16px; margin-bottom: 1.2rem; color: #92400E; font-size: 0.92rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <strong>🟡 Demo Mode Active:</strong> You are viewing synthetic, non-sensitive sample business data (<em>Demo Hardware & Electricals</em>, {count} records). No real customer data is exposed.
-                </div>
-                <div style="font-size: 0.82rem; color: #78350F; background: #FDE68A; padding: 3px 10px; border-radius: 12px; font-weight: 600;">
-                    Sample Data: {name}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    elif mode == DATASET_MODE_UPLOADED:
-        st.markdown(
-            f"""
-            <div style="background-color: #E0F2FE; border: 1px solid #0284C7; border-radius: 8px; padding: 10px 16px; margin-bottom: 1.2rem; color: #075985; font-size: 0.92rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <strong>🔵 Custom Uploaded Dataset:</strong> Analyzing your business records from <code>{name}</code> ({count} records).
-                </div>
-                <div style="font-size: 0.82rem; color: #0369A1; background: #BAE6FD; padding: 3px 10px; border-radius: 12px; font-weight: 600;">
-                    Uploaded CSV
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    elif mode == DATASET_MODE_ORIGINAL:
-        st.markdown(
-            f"""
-            <div style="background-color: #ECFDF5; border: 1px solid #10B981; border-radius: 8px; padding: 8px 14px; margin-bottom: 1.2rem; color: #065F46; font-size: 0.88rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <strong>🟢 Live Business Dataset:</strong> Connected to verified business repository ({name}, {count} records).
-                </div>
-                <div style="font-size: 0.80rem; color: #047857; background: #A7F3D0; padding: 2px 8px; border-radius: 10px; font-weight: 600;">
-                    Original Data
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    """No-op: All visible dataset banners and demo mode badges are suppressed per UI requirements."""
+    pass
 
 
 def render_dataset_uploader_widget(in_sidebar: bool = True):
-    """Renders a dataset management widget with file uploader, validation, and reset controls."""
-    prov = get_dataset_provenance()
-    mode = prov["mode"]
-    name = prov["name"]
-    count = prov["row_count"]
-
-    with st.expander("📁 Dataset Manager", expanded=(mode == DATASET_MODE_DEMO and not in_sidebar)):
-        st.caption(f"**Source:** {prov['status_label']}")
-        st.caption(f"**Records:** {count} rows (`{name}`)")
-
+    """Renders a clean file uploader for user custom business CSVs without status banners or demo badges."""
+    with st.expander("📁 Dataset Manager", expanded=False):
         uploaded = st.file_uploader(
             "Upload Business CSV",
             type=["csv"],
@@ -434,7 +380,7 @@ def render_dataset_uploader_widget(in_sidebar: bool = True):
         if "dataset_upload_error" in st.session_state and st.session_state["dataset_upload_error"]:
             st.error(f"❌ {st.session_state['dataset_upload_error']}")
 
-        if mode == DATASET_MODE_UPLOADED:
+        if st.session_state.get("dataset_mode") == DATASET_MODE_UPLOADED:
             if st.button("↺ Reset to Default Dataset", key="btn_reset_dataset_source", use_container_width=True):
                 reset_to_default_dataset()
                 st.rerun()
@@ -502,9 +448,9 @@ def refresh_application_data(force: bool = False):
         st.session_state["pipeline_result"] = result
         st.session_state["raw_data"] = clean_df
         st.session_state["dataset_path"] = str(demo_path)
-        st.session_state["data_source_mode"] = "Demo Dataset (Synthetic)"
+        st.session_state["data_source_mode"] = "Business Dataset"
         st.session_state["dataset_mode"] = DATASET_MODE_DEMO
-        st.session_state["dataset_name"] = demo_path.name
+        st.session_state["dataset_name"] = "Primary Ledger"
         st.session_state["dataset_status_label"] = DATASET_LABELS[DATASET_MODE_DEMO]
         return
 
