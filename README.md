@@ -1,10 +1,5 @@
 # BizMetrics – Smart Business Intelligence
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B.svg)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/tests-159%20passing-brightgreen.svg)](tests/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
 A modular Python and Streamlit web application providing business analytics, daily sales tracking, inventory demand forecasting, customer receivables (*khata*) aging, and hyperlocal geospatial intelligence for retail and MSME businesses.
 
 ---
