@@ -489,16 +489,12 @@ def prepare_owner_session(loading_placeholder):
         raise RuntimeError("Dashboard data was not prepared correctly.")
     render_owner_loading(loading_placeholder, "All set, Owner!", 100, "Your BizMetrics dashboard is ready.")
 
-main_slot = st.empty()
-
 # ==============================================================================
 # ROUTE 1: AUTHENTICATED CUSTOMER DIGITAL PORTAL
 # ==============================================================================
 if st.session_state.get("customer_authenticated", False) and st.session_state.get("user_role") == "customer":
-    main_slot.empty()
-    with main_slot.container():
-        from components.customer_portal import render_customer_portal
-        render_customer_portal()
+    from components.customer_portal import render_customer_portal
+    render_customer_portal()
     st.stop()
 
 # ==============================================================================
@@ -554,39 +550,35 @@ elif st.session_state.get("user_role") == "customer":
     def handle_back_action():
         clear_auth_session()
 
-    main_slot.empty()
-    with main_slot.container():
-        st.markdown('<style>[data-testid="stSidebar"] { display: none; }</style>', unsafe_allow_html=True)
-        from utils.translations import t, get_current_language
-        lang = get_current_language()
-        st.markdown("<h2 style='text-align: center; color: #1E293B; font-family: \"Playfair Display\", serif; margin-top: 3rem;'>CUSTOMER LOGIN</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #0D9488; margin-bottom: 2rem; font-weight: 500;'>Access your BizMetrics<br>Customer Portal</p>", unsafe_allow_html=True)
+    st.markdown('<style>[data-testid="stSidebar"] { display: none; }</style>', unsafe_allow_html=True)
+    from utils.translations import t, get_current_language
+    lang = get_current_language()
+    st.markdown("<h2 style='text-align: center; color: #1E293B; font-family: \"Playfair Display\", serif; margin-top: 3rem;'>CUSTOMER LOGIN</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #0D9488; margin-bottom: 2rem; font-weight: 500;'>Access your BizMetrics<br>Customer Portal</p>", unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            if "login_error" in st.session_state:
-                st.error(st.session_state.pop("login_error"))
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if "login_error" in st.session_state:
+            st.error(st.session_state.pop("login_error"))
 
-            shops = fetch_registered_shops()
-            shop_options = {shop_id: shop_name for shop_id, shop_name in shops}
-            selected_shop_id = st.selectbox("Select Your Business", list(shop_options.keys()), format_func=lambda shop_id: shop_options[shop_id], index=0, key="route2_shop_id")
-            st.session_state["shop_id"] = selected_shop_id
-            st.session_state["shop_name"] = shop_options[selected_shop_id]
+        shops = fetch_registered_shops()
+        shop_options = {shop_id: shop_name for shop_id, shop_name in shops}
+        selected_shop_id = st.selectbox("Select Your Business", list(shop_options.keys()), format_func=lambda shop_id: shop_options[shop_id], index=0, key="route2_shop_id")
+        st.session_state["shop_id"] = selected_shop_id
+        st.session_state["shop_name"] = shop_options[selected_shop_id]
 
-            customer_name = st.text_input(t("Customer Name", lang), value="Shivansh", placeholder="e.g. Shivansh", key="route2_customer_name")
-            customer_id = st.text_input(t("Customer ID", lang), value="CUST001", type="password", placeholder="e.g. CUST001", key="route2_customer_id")
+        customer_name = st.text_input(t("Customer Name", lang), value="Shivansh", placeholder="e.g. Shivansh", key="route2_customer_name")
+        customer_id = st.text_input(t("Customer ID", lang), value="CUST001", type="password", placeholder="e.g. CUST001", key="route2_customer_id")
 
-            if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_customer_login_route2, key="btn_route2_customer_login"):
-                if not st.session_state.get("customer_authenticated", False):
-                    handle_customer_login_route2()
-                    if st.session_state.get("customer_authenticated", False):
-                        main_slot.empty()
-                        st.rerun()
+        if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_customer_login_route2, key="btn_route2_customer_login"):
+            if not st.session_state.get("customer_authenticated", False):
+                handle_customer_login_route2()
+                if st.session_state.get("customer_authenticated", False):
+                    st.rerun()
 
-            if st.button("← Back", use_container_width=True, on_click=handle_back_action, key="btn_route2_back"):
-                clear_auth_session()
-                main_slot.empty()
-                st.rerun()
+        if st.button("← Back", use_container_width=True, on_click=handle_back_action, key="btn_route2_back"):
+            clear_auth_session()
+            st.rerun()
     st.stop()
 
 # ==============================================================================
@@ -639,71 +631,65 @@ elif st.session_state.get("user_role") == "owner":
         clear_auth_session()
 
     if not st.session_state.get("owner_authenticated", False):
-        main_slot.empty()
-        with main_slot.container():
-            st.markdown('<style>[data-testid="stSidebar"] { display: none; }</style>', unsafe_allow_html=True)
-            st.markdown("<h2 style='text-align: center; color: #1E293B; font-family: \"Playfair Display\", serif; margin-top: 3rem;'>OWNER LOGIN</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #0D9488; margin-bottom: 2rem; font-weight: 500;'>Access your BizMetrics<br>Owner Dashboard</p>", unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col2:
-                if "login_error" in st.session_state:
-                    st.error(st.session_state.pop("login_error"))
+        st.markdown('<style>[data-testid="stSidebar"] { display: none; }</style>', unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #1E293B; font-family: \"Playfair Display\", serif; margin-top: 3rem;'>OWNER LOGIN</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #0D9488; margin-bottom: 2rem; font-weight: 500;'>Access your BizMetrics<br>Owner Dashboard</p>", unsafe_allow_html=True)
 
-                shops = fetch_registered_shops()
-                shop_options = {shop_id: shop_name for shop_id, shop_name in shops}
-                selected_shop_id = st.selectbox("Select Your Business", list(shop_options.keys()), format_func=lambda shop_id: shop_options[shop_id], index=0, key="route3_shop_id")
-                st.session_state["shop_id"] = selected_shop_id
-                st.session_state["shop_name"] = shop_options[selected_shop_id]
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if "login_error" in st.session_state:
+                st.error(st.session_state.pop("login_error"))
 
-                owner_name = st.text_input(t("Owner Name", lang), value="Shivansh G", placeholder="e.g. Shivansh G", key="route3_owner_name")
-                owner_password = st.text_input(t("Password", lang), value="Shivansh@1212", type="password", key="route3_owner_password")
-                
-                if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_owner_login_route3, key="btn_route3_owner_login"):
-                    if not st.session_state.get("owner_authenticated", False):
-                        handle_owner_login_route3()
-                        if st.session_state.get("owner_authenticated", False):
-                            main_slot.empty()
-                            st.rerun()
-                
-                if st.button("← Back", use_container_width=True, on_click=handle_back_action_owner, key="btn_route3_back"):
-                    clear_auth_session()
-                    main_slot.empty()
-                    st.rerun()
+            shops = fetch_registered_shops()
+            shop_options = {shop_id: shop_name for shop_id, shop_name in shops}
+            selected_shop_id = st.selectbox("Select Your Business", list(shop_options.keys()), format_func=lambda shop_id: shop_options[shop_id], index=0, key="route3_shop_id")
+            st.session_state["shop_id"] = selected_shop_id
+            st.session_state["shop_name"] = shop_options[selected_shop_id]
+
+            owner_name = st.text_input(t("Owner Name", lang), value="Shivansh G", placeholder="e.g. Shivansh G", key="route3_owner_name")
+            owner_password = st.text_input(t("Password", lang), value="Shivansh@1212", type="password", key="route3_owner_password")
+
+            if st.button("LOGIN", use_container_width=True, type="primary", on_click=handle_owner_login_route3, key="btn_route3_owner_login"):
+                if not st.session_state.get("owner_authenticated", False):
+                    handle_owner_login_route3()
+                    if st.session_state.get("owner_authenticated", False):
+                        st.rerun()
+
+            if st.button("← Back", use_container_width=True, on_click=handle_back_action_owner, key="btn_route3_back"):
+                clear_auth_session()
+                st.rerun()
         st.stop()
     else:
-        main_slot.empty()
-        with main_slot.container():
-            if "pipeline_result" not in st.session_state or "raw_data" not in st.session_state:
-                loading_placeholder = st.empty()
-                try:
-                    prepare_owner_session(loading_placeholder)
-                except FileNotFoundError:
-                    with loading_placeholder.container():
-                        st.error("We couldn't load your business data.")
-                        st.info("Place rural_business_master_data.csv in the project root or data/ directory.")
-                        if st.button("Try Again", type="primary"):
-                            st.rerun()
-                    st.stop()
-                except Exception as exc:
-                    with loading_placeholder.container():
-                        st.error("We couldn't prepare your BizMetrics dashboard.")
-                        st.exception(exc)
-                        if st.button("Try Again", type="primary"):
-                            st.cache_data.clear()
-                            st.rerun()
-                    st.stop()
+        if "pipeline_result" not in st.session_state or "raw_data" not in st.session_state:
+            loading_placeholder = st.empty()
+            try:
+                prepare_owner_session(loading_placeholder)
+            except FileNotFoundError:
+                with loading_placeholder.container():
+                    st.error("We couldn't load your business data.")
+                    st.info("Place rural_business_master_data.csv in the project root or data/ directory.")
+                    if st.button("Try Again", type="primary"):
+                        st.rerun()
+                st.stop()
+            except Exception as exc:
+                with loading_placeholder.container():
+                    st.error("We couldn't prepare your BizMetrics dashboard.")
+                    st.exception(exc)
+                    if st.button("Try Again", type="primary"):
+                        st.cache_data.clear()
+                        st.rerun()
+                st.stop()
 
-            # Show customer credentials for the shop
-            st.markdown("### Customer Login Credentials")
-            credential_df = pd.DataFrame(get_customer_credentials_for_shop(st.session_state.get("shop_id", SHOP_ID)))
-            if not credential_df.empty:
-                st.dataframe(credential_df[["Customer Name", "Customer ID", "Login Password", "Login Status"]], use_container_width=True, hide_index=True)
-            else:
-                st.info("No customer credentials are available for this shop yet.")
+        # Show customer credentials for the shop
+        st.markdown("### Customer Login Credentials")
+        credential_df = pd.DataFrame(get_customer_credentials_for_shop(st.session_state.get("shop_id", SHOP_ID)))
+        if not credential_df.empty:
+            st.dataframe(credential_df[["Customer Name", "Customer ID", "Login Password", "Login Status"]], use_container_width=True, hide_index=True)
+        else:
+            st.info("No customer credentials are available for this shop yet.")
 
-            st.write("")
-            st.switch_page("pages/01_dashboard.py")
+        st.write("")
+        st.switch_page("pages/01_dashboard.py")
 
 # ==============================================================================
 # ROUTE 4: DEFAULT LANDING PAGE (ACCESS PORTAL SELECTOR)
@@ -797,57 +783,53 @@ else:
                 pass
             st.session_state["login_error"] = "❌ Invalid owner name or password."
 
-    main_slot.empty()
-    with main_slot.container():
-        # Hide sidebar for access selection
-        st.markdown('<style>[data-testid="stSidebar"] { display: none; }</style>', unsafe_allow_html=True)
-        from utils.translations import t, get_current_language, render_language_selector
-        lang = get_current_language()
+    # Hide sidebar for access selection
+    st.markdown('<style>[data-testid="stSidebar"] { display: none; }</style>', unsafe_allow_html=True)
+    from utils.translations import t, get_current_language, render_language_selector
+    lang = get_current_language()
 
-        # Top Language Selector Bar
-        top_col1, top_col2 = st.columns([3.8, 1.2])
-        with top_col2:
-            render_language_selector(key="landing_page_lang")
+    # Top Language Selector Bar
+    top_col1, top_col2 = st.columns([3.8, 1.2])
+    with top_col2:
+        render_language_selector(key="landing_page_lang")
 
-        st.markdown(
-            """
-            <div style="text-align: center; margin-bottom: 1rem; margin-top: 1.5rem;">
-                <h1 style="color: #1E293B; font-size: 3.5rem; font-family: 'Playfair Display', serif; margin-bottom: 0;">BIZMETRICS</h1>
-                <h3 style="color: #0D9488; font-weight: 600; margin-top: 0.3rem;">Smart Business Intelligence</h3>
-            </div>
-            """, unsafe_allow_html=True
-        )
+    st.markdown(
+        """
+        <div style="text-align: center; margin-bottom: 1rem; margin-top: 1.5rem;">
+            <h1 style="color: #1E293B; font-size: 3.5rem; font-family: 'Playfair Display', serif; margin-bottom: 0;">BIZMETRICS</h1>
+            <h3 style="color: #0D9488; font-weight: 600; margin-top: 0.3rem;">Smart Business Intelligence</h3>
+        </div>
+        """, unsafe_allow_html=True
+    )
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if "login_error" in st.session_state:
-                st.error(st.session_state.pop("login_error"))
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if "login_error" in st.session_state:
+            st.error(st.session_state.pop("login_error"))
 
-            shops = fetch_registered_shops()
-            shop_options = {shop_id: shop_name for shop_id, shop_name in shops}
-            selected_shop_id = st.selectbox(t("Select Your Business", lang), list(shop_options.keys()), format_func=lambda shop_id: shop_options[shop_id], index=0, key="landing_shop_id")
-            st.session_state["shop_id"] = selected_shop_id
-            st.session_state["shop_name"] = shop_options[selected_shop_id]
+        shops = fetch_registered_shops()
+        shop_options = {shop_id: shop_name for shop_id, shop_name in shops}
+        selected_shop_id = st.selectbox(t("Select Your Business", lang), list(shop_options.keys()), format_func=lambda shop_id: shop_options[shop_id], index=0, key="landing_shop_id")
+        st.session_state["shop_id"] = selected_shop_id
+        st.session_state["shop_name"] = shop_options[selected_shop_id]
 
-            login_type = st.radio(t("Login As", lang), ["Owner", "Customer"], format_func=lambda x: t(x, lang), horizontal=True, key="landing_login_type")
+        login_type = st.radio(t("Login As", lang), ["Owner", "Customer"], format_func=lambda x: t(x, lang), horizontal=True, key="landing_login_type")
 
-            if login_type == "Owner":
-                st.markdown(f"### {t('OWNER LOGIN', lang)}")
-                owner_name = st.text_input(t("Owner Name", lang), value="Shivansh G", placeholder="e.g. Shivansh G", key="landing_owner_name")
-                owner_password = st.text_input(t("Password", lang), value="Shivansh@1212", type="password", key="landing_owner_password")
-                if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_owner_login_route4, key="btn_landing_owner_login"):
-                    if not st.session_state.get("owner_authenticated", False):
-                        handle_owner_login_route4()
-                        if st.session_state.get("owner_authenticated", False):
-                            main_slot.empty()
-                            st.rerun()
-            else:
-                st.markdown(f"### {t('CUSTOMER LOGIN', lang)}")
-                customer_name = st.text_input(t("Customer Name", lang), value="Shivansh", placeholder="e.g. Shivansh", key="landing_customer_name")
-                customer_id = st.text_input(t("Customer ID", lang), value="CUST001", type="password", placeholder="e.g. CUST001", key="landing_customer_id")
-                if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_customer_login_route4, key="btn_landing_customer_login"):
-                    if not st.session_state.get("customer_authenticated", False):
-                        handle_customer_login_route4()
-                        if st.session_state.get("customer_authenticated", False):
-                            main_slot.empty()
-                            st.rerun()
+        if login_type == "Owner":
+            st.markdown(f"### {t('OWNER LOGIN', lang)}")
+            owner_name = st.text_input(t("Owner Name", lang), value="Shivansh G", placeholder="e.g. Shivansh G", key="landing_owner_name")
+            owner_password = st.text_input(t("Password", lang), value="Shivansh@1212", type="password", key="landing_owner_password")
+            if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_owner_login_route4, key="btn_landing_owner_login"):
+                if not st.session_state.get("owner_authenticated", False):
+                    handle_owner_login_route4()
+                    if st.session_state.get("owner_authenticated", False):
+                        st.rerun()
+        else:
+            st.markdown(f"### {t('CUSTOMER LOGIN', lang)}")
+            customer_name = st.text_input(t("Customer Name", lang), value="Shivansh", placeholder="e.g. Shivansh", key="landing_customer_name")
+            customer_id = st.text_input(t("Customer ID", lang), value="CUST001", type="password", placeholder="e.g. CUST001", key="landing_customer_id")
+            if st.button(t("Login", lang), use_container_width=True, type="primary", on_click=handle_customer_login_route4, key="btn_landing_customer_login"):
+                if not st.session_state.get("customer_authenticated", False):
+                    handle_customer_login_route4()
+                    if st.session_state.get("customer_authenticated", False):
+                        st.rerun()

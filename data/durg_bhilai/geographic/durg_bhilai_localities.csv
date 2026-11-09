@@ -1,0 +1,18 @@
+geo_id,area_name,geo_type,latitude,longitude,radius_km,parent_city,district,description
+GEO-DURG-CTR,Durg City Center,City Core,21.1904,81.2849,3.5,Durg,Durg,"District administrative center, Collectorate, Railway Junction, Ganj Mandi"
+GEO-DURG-GANJ,Ganjpara & Shanichari,Commercial Market,21.1925,81.282,1.2,Durg,Durg,"Wholesale hardware, electricals, and grain trading mandi"
+GEO-DURG-STN,Durg Station Road,Transit Corridor,21.1972,81.278,1.0,Durg,Durg,"Railway station approach, transport agencies, hardware retail"
+GEO-DURG-PAD,Padmanabhpur,Residential & Retail,21.176,81.295,1.8,Durg,Durg,Upscale residential sector with neighborhood convenience retail
+GEO-DURG-BORAI,CSIDC Borai Industrial Growth Center,Industrial Area,21.155,81.182,4.0,Durg,Durg,"CSIDC manufacturing zone: fabrication, food processing, heavy engineering"
+GEO-BHILAI-CIVIC,Bhilai Civic Center,Township Hub,21.1938,81.3509,2.0,Bhilai,Durg,"Iconic cultural and retail hub of Bhilai, Kala Mandir, Nehru Art Gallery"
+GEO-BHILAI-SUPELA,Supela Commercial Market,High-Density Retail,21.2144,81.334,2.5,Bhilai,Durg,"Busiest commercial bazaar: electronics, hardware, textiles, mobile stores"
+GEO-BHILAI-POWER,Power House,Transit & Wholesale,21.198,81.368,2.2,Bhilai,Durg,"Major railway station, bus terminus, auto parts and wholesale supply"
+GEO-BHILAI-NEHRU,Nehru Nagar (East & West),Premium Residential & Commercial,21.2312,81.328,2.2,Bhilai,Durg,"High-income residential colony, Surya Treasure Island Mall, private healthcare"
+GEO-BHILAI-SMRITI,Smriti Nagar & Junwani,Institutional & Student Hub,21.242,81.321,2.5,Bhilai,Durg,"Engineering and medical colleges: BIT Durg, Rungta, Shri Shankaracharya"
+GEO-BHILAI-SEC6,Sector 6 & Sector 1,Steel Township,21.186,81.356,2.0,Bhilai,Durg,"SAIL township core: BSP administrative offices, JLN Hospital Sector 9 approach"
+GEO-BHILAI-VAISH,Vaishali Nagar & Kurud,Suburban Retail,21.228,81.355,2.0,Bhilai,Durg,"Dense suburban market, hardware dealers, plumbing and building contractors"
+GEO-CHARODA-CTR,Bhilai Charoda,Urban Local Body,21.2255,81.4245,3.0,Bhilai Charoda,Durg,"SECR Railway workshops, Hathkhoj Light Industrial Estate corridor"
+GEO-RISALI-CTR,Risali & Maroda,Urban Local Body,21.168,81.332,2.5,Risali,Durg,"Newly formed municipal corp, Maitri Nagar, Ruabandha commercial expansion"
+GEO-JAMUL-CTR,Jamul Nagar Palika,Industrial Town,21.248,81.345,2.5,Jamul,Durg,"Cement manufacturing industrial township, ACC Jamul works, Housing Board"
+GEO-KUMHARI-CTR,Kumhari Nagar Palika,Suburban Corridor,21.268,81.512,3.0,Kumhari,Durg,"Inter-district twin-city transit gateway on NH 53, chemical and logistics units"
+GEO-AHIWARA-CTR,Ahiwara Nagar Palika,Industrial Town,21.36,81.385,2.5,Ahiwara,Durg,"Limestone mining auxiliary cluster, Nandini transport junction"

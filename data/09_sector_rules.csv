@@ -1,0 +1,9 @@
+Sector,Sub_Category,Seasonality_Pattern,Demand_Factor,Peak_Months,Low_Months,Weather_Effect,Event_Effect,Typical_Margin,Inventory_Turnover,Notes
+Hardware,Building Materials,Seasonal,Construction Activity,Oct-Feb,Jun-Aug,Low during heavy monsoon,Post-monsoon construction,15-25%,8-10 times/year,Demand increases after monsoon
+Hardware,Tools & Equipment,Moderate,Construction Activity,Oct-Feb,Jun-Aug,Low during monsoon,Festival construction,50-80%,12-15 times/year,Essential items have steady demand
+Hardware,Electrical Supplies,Moderate,Weather & Construction,Oct-Feb,Jun-Aug,Medium effect,Diwali decorations,60-90%,10-12 times/year,Peak before festival season
+Hardware,Plumbing Materials,Moderate,Seasonal,Oct-Feb,Jun-Aug,High during monsoon,Post-monsoon repairs,50-70%,8-10 times/year,Monsoon pipe repairs increase demand
+Hardware,Paints & Chemicals,Seasonal,Weather & Construction,Oct-Feb,Jun-Aug,Low during monsoon,Pre-Diwali painting,60-100%,6-8 times/year,Diwali renovation rush
+Hardware,Fasteners,Steady,Construction Activity,Oct-Feb,Jun-Aug,Low effect,Constant demand,70-90%,15-20 times/year,High turnover low margin items
+Hardware,Doors & Windows,Seasonal,Construction Activity,Oct-Feb,Jun-Aug,Very low,Wedding season,40-60%,4-6 times/year,Long lead times - plan 2-3 months ahead
+Hardware,Abrasives,Moderate,Workshop Activity,Sep-Nov,May-Jun,Low effect,Post-monsoon workshops,75-90%,10-12 times/year,DIY and professional use

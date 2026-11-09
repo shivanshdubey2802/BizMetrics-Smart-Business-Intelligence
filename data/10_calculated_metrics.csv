@@ -1,0 +1,44 @@
+Metric_ID,Metric_Name,Category,August_2026_Value,Threshold,Status,Risk_Level,Action_Required,Python_Formula,Notes
+M001,Total Revenue,Financial,₹80441,NA,Calculated,Green,No,SUM(sales),All payment modes combined
+M002,Gross Profit,Financial,₹26584,NA,Calculated,Green,No,Revenue - COGS,Estimated from product margins
+M003,Net Profit,Financial,₹1041,NA,Calculated,Red,Yes,Revenue - Expenses,Margin too thin (1.29%)
+M004,Profit Margin %,Financial,1.29%,5%+,Critical,Red,Yes,(Net Profit / Revenue) × 100,BELOW threshold - action needed
+M005,Gross Profit Margin,Financial,33.05%,25%+,Healthy,Green,No,(Gross Profit / Revenue) × 100,Good product mix margin
+M006,Return on Investment,Financial,9.94%,12%+,Below Target,Yellow,Monitor,(Annual Net Profit / Investment) × 100,Annualized from August
+M007,Return on Sales,Financial,1.29%,3%+,Poor,Red,Yes,(Net Profit / Revenue) × 100,Same as profit margin
+M008,Fixed Costs,Financial,₹57500,NA,Calculated,Yellow,Monitor,SUM(Fixed Expenses),High fixed cost base
+M009,Variable Costs,Financial,₹21900,NA,Calculated,Green,No,SUM(Variable Expenses),Good cost control
+M010,Fixed Cost Ratio,Financial,72.4%,60%,High,Yellow,Monitor,(Fixed Costs / Total Costs) × 100,Limited flexibility in downturn
+M011,Break-Even Revenue,Financial,₹138970,Current: ₹80441,Above BEP,Yellow,Monitor,Fixed Costs / Contribution Margin Ratio,Need 73% sales increase for BEP
+M012,Contribution Margin Ratio,Financial,41.3%,NA,Calculated,Green,No,1 - (COGS / Revenue),Good margin on variable part
+M013,Cash Flow (Theory),Financial,₹1041,₹10000+,Negative,Red,Yes,Revenue - Expenses,Should be ₹10k+ for health
+M014,Debt Burden Ratio,Financial,19.5%,15%,High,Yellow,Caution,(Monthly EMI / Monthly Revenue) × 100,Above safe threshold
+M015,Total Debt Outstanding,Financial,₹409000,NA,Calculated,Yellow,Monitor,SUM(Outstanding Principal),Combined from 2 loans
+M016,Receivables Outstanding,Receivables,₹30219,₹16022 (20% of rev),High,Yellow,Caution,SUM(Outstanding by customer),38% of monthly revenue
+M017,Receivables Overdue,Receivables,₹9020,₹0,Over Target,Red,Yes,SUM(Outstanding > Due Date),Collection action required
+M018,Days Sales Outstanding,Receivables,11.2 days,7 days,High,Yellow,Monitor,(Outstanding / Daily Revenue) × Days,Cash cycle stretched
+M019,Collection Rate,Receivables,42.6%,60%+,Low,Red,Improve,Payments / Credit Sales × 100,Need better collection discipline
+M020,Total Payables,Payables,₹22760,NA,Calculated,Green,No,SUM(Outstanding to vendors),Within normal range
+M021,Payables Overdue,Payables,₹10600,₹0,Over Due,Yellow,Attention,SUM(Outstanding > Due Date),18 days on largest supplier
+M022,Payment Terms Compliance,Payables,55.8%,80%+,Low,Yellow,Improve,On-time Payments / Total Payments × 100,Some payment delays
+M023,Low Stock Items,Inventory,2 items,0,Alert,Yellow,Immediate Action,COUNT(Current Stock < Reorder Level),PROD005 (Doors), PROD007 (Hammers)
+M024,Dead Stock,Inventory,₹20000,₹0,Alert,Yellow,Action Required,SUM(Stock > Maximum Stock × Unit Price),PROD005 (Doors) - slow moving
+M025,Stock-out Risk,Inventory,2 items,0,Alert,Yellow,Reorder Now,COUNT(Current Stock < Minimum Stock),High-value items - plan ahead
+M026,Inventory Turnover Days,Inventory,22.7 days,15-20 days,Moderate,Yellow,Monitor,Days in Period / (COGS / Avg Inventory),Slightly above optimal
+M027,Avg Product Margin,Inventory,61.2%,50%+,Healthy,Green,No,AVG(Profit Margin by Product),Good margin across range
+M028,Product Revenue Mix,Inventory,NA,NA,Analyzed,Green,No,Revenue % by Product Category,Electrical 28% | Tools 22% | Building 20%
+M029,Top Product (Revenue),Inventory,Cement (PROD003),NA,Strong Performer,Green,No,MAX(Revenue by Product),₹8232 sales in August
+M030,Bottom Product (Revenue),Inventory,Paint Thinner (PROD010),NA,Low,Yellow,Monitor,MIN(Revenue by Product),₹3600 sales - consider discontinuing
+M031,Customer Base Size,Customers,10 customers,NA,Small,Yellow,Grow,COUNT(Unique Customers),Heavy reliance on contractors
+M032,Customer Concentration,Customers,43%,30%,High,Yellow,Risk,Revenue % from Top 3 Customers,Top 3 = CUST001+CUST003+CUST006
+M033,Customer Repeat Rate,Customers,70%,60%+,Healthy,Green,No,Repeat Customers / Total Customers,Good customer loyalty
+M034,Average Customer Value,Customers,₹8044,₹10000,Below Target,Yellow,Monitor,Total Revenue / Customer Count,Room to increase
+M035,Active Credit Customers,Customers,6,10,Moderate,Yellow,Monitor,COUNT(Customers with Credit),Good credit utilization
+M036,Loan Repayment Status,Debt,On Track,100%,Healthy,Green,No,Paid EMI / Expected EMI × 100,No missed payments
+M037,Working Capital Gap,Cash,₹7459,₹15000+,Insufficient,Red,Yes,Receivables - Payables,Need better collection
+M038,Cash Conversion Cycle,Cash,11.2 days,5-10 days,Stretched,Yellow,Monitor,DSO + DIO - DPO,Collection delays
+M039,Seasonal Demand Index,Forecast,1.0 (baseline),1.2-1.5 Aug-Sep,Below Peak,Yellow,Prepare,Month-to-Month Demand Factor,August not peak season
+M040,Forecast Next 30 Days,Forecast,₹87500 (estimated),₹90000+,Below Target,Yellow,Caution,XGBoost Model Output,Slight decrease expected
+M041,Recommended Purchase QTY,Forecast,₹42000,Based on Forecast,Calculated,Green,Proceed,Predicted Demand + Safety Stock - Stock,Diversify across high-margin items
+M042,Sector Health Score,Sector,Good,NA,Analyzed,Green,No,Qualitative assessment,Hardware showing steady demand
+M043,Festival Impact Next 30 Days,Seasonal,Low,NA,Analyzed,Yellow,Prepare,Festival calendar mapping,No major festivals until Dussehra (Oct)

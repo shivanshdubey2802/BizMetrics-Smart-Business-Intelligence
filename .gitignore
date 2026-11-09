@@ -101,3 +101,8 @@ desktop.ini
 # 10. Node / npm artifacts
 node_modules/
 package-lock.json
+
+# 11. Obsolete Duplicates & Raw Ingestion Dumps
+dataural_business_master_data.csv
+BizMetrics_realistic_inventory_12_SKUs.csv
+data/durg_bhilai/raw/

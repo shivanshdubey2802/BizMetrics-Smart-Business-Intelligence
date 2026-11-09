@@ -1,0 +1,9 @@
+Date,Festival_Name,Festival_Type,Region,Start_Date,End_Date,Expected_Demand_Effect,Affected_Sectors,Notes
+2026-09-15,Ganesh Chaturthi,Religious,Chhattisgarh,2026-09-07,2026-09-17,Medium,Hardware,Minor decorative hardware demand
+2026-10-15,Dussehra,Religious,Chhattisgarh,2026-10-05,2026-10-25,High,Hardware,Construction activity before festival
+2026-11-15,Diwali,Religious Festival,India,2026-10-29,2026-11-01,High,Hardware,Paint and renovation before Diwali
+2026-11-20,Wedding Season Start,Seasonal,Chhattisgarh,2026-11-01,2027-01-31,High,Hardware,Door & fixture demand for home construction
+2026-06-15,Monsoon Season,Seasonal,Chhattisgarh,2026-06-15,2026-09-30,Medium,Hardware,Pipes and waterproofing materials
+2026-03-15,Summer Season,Seasonal,Chhattisgarh,2026-03-21,2026-06-20,Medium,Hardware,Paint and cement demand
+2026-12-15,Construction Peak,Seasonal,Chhattisgarh,2026-11-01,2027-02-28,High,Hardware,Post-monsoon construction activity
+2026-09-01,School Year Start,Seasonal,Chhattisgarh,2026-06-01,2026-08-31,Low,Hardware,Minor office/workspace setup

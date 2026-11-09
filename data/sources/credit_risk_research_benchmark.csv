@@ -1,0 +1,5 @@
+ageing_bucket,risk_tier,default_rate_pct,standard_provision_pct,collection_sla_days,action
+0-30 Days,Low Risk,1.2,1.0,30,Standard invoice reminder via WhatsApp
+31-60 Days,Medium Risk,8.5,10.0,15,Formal reminder call & pause credit expansion
+61-90 Days,High Risk,28.4,30.0,7,"In-person visit, settlement plan, formal legal notice"
+90+ Days,Critical Delinquent,68.7,75.0,3,"Stop supply, initiate recovery protocol, report delinquency"

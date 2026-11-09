@@ -1,0 +1,50 @@
+[
+  {
+    "source_id": "SRC-CENSUS-2011",
+    "dataset_name": "Census of India 2011 - Primary Census Abstract (PCA) & District Census Handbook",
+    "source_organization": "Office of the Registrar General & Census Commissioner, India",
+    "source_url": "https://censusindia.gov.in/nada/index.php/catalog/357",
+    "license": "Government Open Data License - India (GODL)",
+    "reference_year": "2011",
+    "coverage_area": "Durg District, Bhilai Nagar, Durg, Bhilai Charoda, Jamul, Kumhari, Ahiwara",
+    "record_count": 10,
+    "last_verified": "2026-11-06",
+    "limitations": "Official decennial enumeration baseline. Labeled strictly as 2011 Census figures, not 2026 estimates."
+  },
+  {
+    "source_id": "SRC-OSM-2024",
+    "dataset_name": "OpenStreetMap Commercial Points of Interest (POIs)",
+    "source_organization": "OpenStreetMap Foundation / Community Contributors",
+    "source_url": "https://www.openstreetmap.org/",
+    "license": "Open Database License (ODbL) 1.0",
+    "reference_year": "2024",
+    "coverage_area": "Durg, Bhilai, Risali, Jamul, Kumhari, Ahiwara, Borai",
+    "record_count": 25,
+    "last_verified": "2026-11-06",
+    "limitations": "Community-maintained GIS nodes. Coverage represents verified geographic nodes and commercial hubs."
+  },
+  {
+    "source_id": "SRC-DURG-PORTAL",
+    "dataset_name": "District Durg Official Government Portal & Demography",
+    "source_organization": "District Administration Durg, National Informatics Centre (NIC)",
+    "source_url": "https://durg.gov.in/",
+    "license": "Official Government Information (Public Domain)",
+    "reference_year": "2023-24",
+    "coverage_area": "District Administration, Municipalities, Collectorate",
+    "record_count": 7,
+    "last_verified": "2026-11-06",
+    "limitations": "Official administrative profiles, block boundaries, and collectorate public disclosures."
+  },
+  {
+    "source_id": "SRC-SLBC-CG",
+    "dataset_name": "State Level Bankers Committee (SLBC) Chhattisgarh District Credit Plan",
+    "source_organization": "Canara Bank (Lead Bank Durg) / Reserve Bank of India",
+    "source_url": "https://slbcchhattisgarh.nic.in/",
+    "license": "Public Banking Disclosure",
+    "reference_year": "FY 2023-24",
+    "coverage_area": "Durg District Commercial and Rural Banking",
+    "record_count": 1,
+    "last_verified": "2026-11-06",
+    "limitations": "District-level financial aggregates including priority sector lending and CD ratios."
+  }
+]

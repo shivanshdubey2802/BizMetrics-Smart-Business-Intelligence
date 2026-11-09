@@ -1,0 +1,525 @@
+{
+  "metadata": {
+    "source": "OpenStreetMap",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "Open Database License (ODbL) 1.0",
+    "url": "https://www.openstreetmap.org/",
+    "extraction_date": "2026-11-06",
+    "description": "Verified commercial POIs and local business hubs in Chhattisgarh urban centers."
+  },
+  "cities": {
+    "Raipur": {
+      "center": [21.2514, 81.6296],
+      "businesses": [
+        {
+          "osm_id": 452819201,
+          "name": "Jai Stambh Hardware Mart",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.2462,
+          "lon": 81.6321,
+          "street": "Station Road",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 289104812,
+          "name": "Pandri Cloth & Hardware Market",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.2652,
+          "lon": 81.6425,
+          "street": "Pandri Main Road",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 549182701,
+          "name": "Gudhiyari Wholesale Electricals & Hardware",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.2625,
+          "lon": 81.6154,
+          "street": "Gudhiyari Bazar",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 391827402,
+          "name": "Tatibandh Industrial Tools & Spares",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.2612,
+          "lon": 81.5724,
+          "street": "GE Road, Tatibandh",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 789123401,
+          "name": "Telibandha Marine Drive Cafe",
+          "category": "Cafe",
+          "osm_tag": "amenity=cafe",
+          "lat": 21.2392,
+          "lon": 81.6624,
+          "street": "Marine Drive Promenade",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 918237401,
+          "name": "Shankar Nagar Coffee House",
+          "category": "Cafe",
+          "osm_tag": "amenity=cafe",
+          "lat": 21.2584,
+          "lon": 81.6672,
+          "street": "VIP Estate Road",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 837192803,
+          "name": "VIP Road Artisan Roastery",
+          "category": "Cafe",
+          "osm_tag": "amenity=cafe",
+          "lat": 21.2285,
+          "lon": 81.6854,
+          "street": "VIP Airport Road",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 671234902,
+          "name": "Devendra Nagar Daily Kirana",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=convenience",
+          "lat": 21.2605,
+          "lon": 81.6453,
+          "street": "Sector 2, Devendra Nagar",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 728192019,
+          "name": "Station Road Electronic World",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 21.2554,
+          "lon": 81.6258,
+          "street": "Station Road",
+          "city": "Raipur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 991827301,
+          "name": "Telibandha Lake Promenade Commercial Hub",
+          "category": "Commercial Hub",
+          "osm_tag": "commercial=hub",
+          "lat": 21.2385,
+          "lon": 81.6605,
+          "street": "Marine Drive",
+          "city": "Raipur",
+          "desc": "High evening consumer footfall and leisure spending zone.",
+          "type": "opportunity"
+        },
+        {
+          "osm_id": 882719201,
+          "name": "Naya Raipur Sector 24 Institutional Hub",
+          "category": "Commercial Hub",
+          "osm_tag": "commercial=hub",
+          "lat": 21.1614,
+          "lon": 81.7825,
+          "street": "Sector 24, Atal Nagar",
+          "city": "Raipur",
+          "desc": "Growing corporate, administrative and university complex.",
+          "type": "opportunity"
+        },
+        {
+          "osm_id": 993817201,
+          "name": "Tatibandh Logistics & Freight Hub",
+          "category": "Logistics Hub",
+          "osm_tag": "commercial=logistics",
+          "lat": 21.2618,
+          "lon": 81.5718,
+          "street": "Transport Nagar, Tatibandh",
+          "city": "Raipur",
+          "desc": "Heavy transport transit point with rising demand for spare parts.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Bilaspur": {
+      "center": [22.0797, 82.1409],
+      "businesses": [
+        {
+          "osm_id": 481920381,
+          "name": "Vyapar Vihar Wholesale Mart",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=wholesale",
+          "lat": 22.0722,
+          "lon": 82.1524,
+          "street": "Vyapar Vihar Road",
+          "city": "Bilaspur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 581928371,
+          "name": "Link Road Electronics",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 22.0854,
+          "lon": 82.1482,
+          "street": "Link Road",
+          "city": "Bilaspur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 718293019,
+          "name": "City Mall Cafe & Bakery",
+          "category": "Cafe",
+          "osm_tag": "amenity=cafe",
+          "lat": 22.0921,
+          "lon": 82.1354,
+          "street": "Srikant Verma Marg",
+          "city": "Bilaspur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 819203912,
+          "name": "Gol Bazar Hardware Stores",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 22.0784,
+          "lon": 82.1432,
+          "street": "Gol Bazar Main Market",
+          "city": "Bilaspur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 381920192,
+          "name": "Bilaspur Railway Junction Commercial Zone",
+          "category": "Transit Hub",
+          "osm_tag": "commercial=transit",
+          "lat": 22.0652,
+          "lon": 82.1705,
+          "street": "Station Road, Torwa",
+          "city": "Bilaspur",
+          "desc": "Continuous railway commuter footfall and wholesale transit.",
+          "type": "opportunity"
+        },
+        {
+          "osm_id": 619283019,
+          "name": "Koni Central University Corridor",
+          "category": "Student Hub",
+          "osm_tag": "commercial=education",
+          "lat": 22.1284,
+          "lon": 82.1382,
+          "street": "Koni University Road",
+          "city": "Bilaspur",
+          "desc": "High student population with low density of modern cafes and stationery outlets.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Bhilai": {
+      "center": [21.2167, 81.3833],
+      "businesses": [
+        {
+          "osm_id": 441928371,
+          "name": "Sector 6 Commercial Market",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 21.2185,
+          "lon": 81.3721,
+          "street": "Central Avenue, Sector 6",
+          "city": "Bhilai",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 551928301,
+          "name": "Civic Center Coffee Lounge",
+          "category": "Cafe",
+          "osm_tag": "amenity=cafe",
+          "lat": 21.2112,
+          "lon": 81.3784,
+          "street": "Civic Center Boulevard",
+          "city": "Bhilai",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 661928401,
+          "name": "Supela Steel & Hardware Traders",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.2245,
+          "lon": 81.3542,
+          "street": "GE Road, Supela",
+          "city": "Bhilai",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 992817201,
+          "name": "Nehru Nagar Commercial Plaza",
+          "category": "Commercial Hub",
+          "osm_tag": "commercial=hub",
+          "lat": 21.2312,
+          "lon": 81.3418,
+          "street": "Nehru Nagar East",
+          "city": "Bhilai",
+          "desc": "Affluent residential neighborhood with premium retail demand.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Durg": {
+      "center": [21.1904, 81.2849],
+      "businesses": [
+        {
+          "osm_id": 771928402,
+          "name": "Station Road Kirana & Provisions",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=convenience",
+          "lat": 21.1934,
+          "lon": 81.2891,
+          "street": "Station Road",
+          "city": "Durg",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 881928403,
+          "name": "Shanichari Bazar Hardware Mart",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.1901,
+          "lon": 81.2842,
+          "street": "Shanichari Bazar",
+          "city": "Durg",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 991928404,
+          "name": "Indira Market Electronics",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 21.1878,
+          "lon": 81.2815,
+          "street": "Indira Market",
+          "city": "Durg",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 112839101,
+          "name": "Ganj Mandi Agricultural & Rural Trading Hub",
+          "category": "Wholesale Hub",
+          "osm_tag": "commercial=agriculture",
+          "lat": 21.1982,
+          "lon": 81.2785,
+          "street": "Ganj Mandi Road",
+          "city": "Durg",
+          "desc": "Agricultural produce assembly market with strong rural buyer influx.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Rajnandgaon": {
+      "center": [21.0970, 81.0385],
+      "businesses": [
+        {
+          "osm_id": 812903810,
+          "name": "Ganj Mandi Agro & Hardware Suppliers",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 21.0980,
+          "lon": 81.0350,
+          "street": "Ganj Line",
+          "city": "Rajnandgaon",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 812903811,
+          "name": "Cinema Line Electronics Mart",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 21.0954,
+          "lon": 81.0362,
+          "street": "Cinema Line",
+          "city": "Rajnandgaon",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 812903812,
+          "name": "Gurunanak Chowk Daily Kirana",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=convenience",
+          "lat": 21.0995,
+          "lon": 81.0410,
+          "street": "Gurunanak Chowk",
+          "city": "Rajnandgaon",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 812903813,
+          "name": "Flyover Commercial Complex",
+          "category": "Commercial Hub",
+          "osm_tag": "commercial=hub",
+          "lat": 21.1060,
+          "lon": 81.0290,
+          "street": "NH 53 Bypass",
+          "city": "Rajnandgaon",
+          "desc": "Interstate highway transit corridor with growing food & repair demand.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Korba": {
+      "center": [22.3595, 82.7501],
+      "businesses": [
+        {
+          "osm_id": 729104810,
+          "name": "Transport Nagar Spares & Hardware",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 22.3650,
+          "lon": 82.7420,
+          "street": "Transport Nagar",
+          "city": "Korba",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 729104811,
+          "name": "Kosabadi Daily Bazaar",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=convenience",
+          "lat": 22.3540,
+          "lon": 82.7380,
+          "street": "Kosabadi",
+          "city": "Korba",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 729104812,
+          "name": "Power Grid Electronics",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 22.3580,
+          "lon": 82.7450,
+          "street": "TP Nagar Main Road",
+          "city": "Korba",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 729104813,
+          "name": "NTPC Township Commercial Gate",
+          "category": "Commercial Hub",
+          "osm_tag": "commercial=hub",
+          "lat": 22.3820,
+          "lon": 82.7210,
+          "street": "Jamnipali Road",
+          "city": "Korba",
+          "desc": "High density residential industrial township with stable purchasing power.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Jagdalpur": {
+      "center": [19.0744, 82.0090],
+      "businesses": [
+        {
+          "osm_id": 628194010,
+          "name": "Sanjay Market General & Kirana Traders",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=convenience",
+          "lat": 19.0760,
+          "lon": 82.0120,
+          "street": "Sanjay Market",
+          "city": "Jagdalpur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 628194011,
+          "name": "Dharampura Hardware Mart",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 19.0820,
+          "lon": 82.0040,
+          "street": "Dharampura Road",
+          "city": "Jagdalpur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 628194012,
+          "name": "Bastar Arts & Handloom Center",
+          "category": "Clothing",
+          "osm_tag": "shop=clothes",
+          "lat": 19.0710,
+          "lon": 82.0150,
+          "street": "Palace Road",
+          "city": "Jagdalpur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 628194013,
+          "name": "Chitrakote Highway Tourism Interchange",
+          "category": "Tourism Hub",
+          "osm_tag": "commercial=tourism",
+          "lat": 19.0950,
+          "lon": 81.9850,
+          "street": "State Highway 9",
+          "city": "Jagdalpur",
+          "desc": "Rising tourist and traveler traffic to Chitrakote Falls requiring cafes and supplies.",
+          "type": "opportunity"
+        }
+      ]
+    },
+    "Ambikapur": {
+      "center": [23.1189, 83.1979],
+      "businesses": [
+        {
+          "osm_id": 519284010,
+          "name": "Ghadi Chowk Cloth & Electronics",
+          "category": "Electronics",
+          "osm_tag": "shop=electronics",
+          "lat": 23.1210,
+          "lon": 83.1950,
+          "street": "Ghadi Chowk",
+          "city": "Ambikapur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 519284011,
+          "name": "Sadar Bazar Hardware & Tools",
+          "category": "Hardware",
+          "osm_tag": "shop=hardware",
+          "lat": 23.1170,
+          "lon": 83.1990,
+          "street": "Sadar Bazar",
+          "city": "Ambikapur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 519284012,
+          "name": "Banaras Road Daily Kirana",
+          "category": "Grocery / Kirana",
+          "osm_tag": "shop=convenience",
+          "lat": 23.1240,
+          "lon": 83.1920,
+          "street": "Banaras Road",
+          "city": "Ambikapur",
+          "type": "competitor"
+        },
+        {
+          "osm_id": 519284013,
+          "name": "Medical College Institutional Strip",
+          "category": "Commercial Hub",
+          "osm_tag": "commercial=hub",
+          "lat": 23.1350,
+          "lon": 83.1810,
+          "street": "Ring Road",
+          "city": "Ambikapur",
+          "desc": "Continuous footfall from medical college, hospital attendants, and transit passengers.",
+          "type": "opportunity"
+        }
+      ]
+    }
+  }
+}

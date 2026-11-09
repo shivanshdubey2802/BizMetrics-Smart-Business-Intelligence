@@ -185,25 +185,32 @@ def render_customer_sidebar():
                     box-sizing: border-box !important;
                 }}
 
-                /* Visually hide radio button circle/dot cleanly without collapsing text container */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
-                    position: absolute !important;
-                    opacity: 0 !important;
+                /* Bulletproof elimination of radio button circle, dot, selection indicator, and symbols */
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input[type="radio"],
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label > div:first-of-type,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label > div:not(:last-child),
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input + div,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input + span,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label svg,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label div[class*="Radio"],
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label span[class*="Radio"],
+                [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetSelectionIndicator"] {{
+                    display: none !important;
                     width: 0 !important;
                     height: 0 !important;
                     min-width: 0 !important;
+                    max-width: 0 !important;
                     margin: 0 !important;
                     padding: 0 !important;
+                    border: none !important;
+                    opacity: 0 !important;
                     pointer-events: none !important;
-                    overflow: hidden !important;
+                    visibility: hidden !important;
+                    position: absolute !important;
                     clip: rect(0, 0, 0, 0) !important;
                 }}
 
                 /* Hide selection indicator and pseudo elements */
-                [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetSelectionIndicator"] {{
-                    display: none !important;
-                }}
-
                 [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label::before,
                 [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label::after {{
                     display: none !important;
