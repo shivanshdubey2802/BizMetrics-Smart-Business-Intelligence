@@ -187,14 +187,9 @@ def render_customer_sidebar():
 
                 /* Bulletproof elimination of radio button circle, dot, selection indicator, and symbols */
                 [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input[type="radio"],
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label > div:first-of-type,
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label > div:not(:last-child),
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input + div,
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input + span,
                 [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label svg,
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label div[class*="Radio"],
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label span[class*="Radio"],
-                [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetSelectionIndicator"] {{
+                [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetSelectionIndicator"],
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[class*="WidgetSelectionIndicator"] {{
                     display: none !important;
                     width: 0 !important;
                     height: 0 !important;
@@ -232,19 +227,12 @@ def render_customer_sidebar():
                 }}
 
                 /* Ensure the text label container is fully visible, full-width, legible and clickable */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:last-child {{
-                    display: block !important;
-                    visibility: visible !important;
-                    opacity: 1 !important;
-                    width: 100% !important;
-                    padding-left: 0.2rem !important;
-                }}
-
                 [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] {{
                     display: block !important;
                     visibility: visible !important;
                     opacity: 1 !important;
                     width: 100% !important;
+                    padding-left: 0.2rem !important;
                 }}
 
                 /* Inactive navigation item text: Navy #1E293B */
@@ -319,9 +307,20 @@ def render_customer_sidebar():
             st.session_state["_last_synced_nav"] = sel
 
         def _format_nav_label(item: str) -> str:
-            if item == "QR Code Pass":
-                return t("QR Code", lang)
-            return t(item, lang)
+            friendly_names = {
+                "Dashboard": "Overview",
+                "Profile & Account": "My Profile",
+                "Order History": "My Orders",
+                "Digital Invoices": "Payments & Invoices",
+                "Outstanding Dues": "Outstanding Dues",
+                "QR Code Pass": "Digital QR / Check-in",
+                "Loyalty & Rewards": "Loyalty & Rewards",
+                "Customer Insights": "Customer Insights",
+                "Offers & Notifications": "Notifications",
+                "Support Center": "Support",
+            }
+            display_name = friendly_names.get(item, item)
+            return t(display_name, lang)
 
         st.radio(
             "CUSTOMER",

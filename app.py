@@ -82,10 +82,27 @@ def init_auth_db():
         CREATE TABLE IF NOT EXISTS shops (
             shop_id TEXT PRIMARY KEY,
             shop_name TEXT NOT NULL,
+            owner_name TEXT DEFAULT 'Shivansh G',
+            phone TEXT DEFAULT '+91 98765 43210',
+            address TEXT DEFAULT 'Raipur, Chhattisgarh',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+    # Ensure missing columns in shops table if it existed from earlier schema
+    try:
+        cur = conn.cursor()
+        cur.execute("PRAGMA table_info(shops)")
+        existing_cols = {row[1].lower() for row in cur.fetchall()}
+        if "owner_name" not in existing_cols:
+            cur.execute("ALTER TABLE shops ADD COLUMN owner_name TEXT DEFAULT 'Shivansh G'")
+        if "phone" not in existing_cols:
+            cur.execute("ALTER TABLE shops ADD COLUMN phone TEXT DEFAULT '+91 98765 43210'")
+        if "address" not in existing_cols:
+            cur.execute("ALTER TABLE shops ADD COLUMN address TEXT DEFAULT 'Raipur, Chhattisgarh'")
+    except Exception:
+        pass
+
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS customer_credentials (
@@ -114,7 +131,7 @@ def init_auth_db():
         "UPDATE customer_credentials SET customer_name = 'Shivansh' WHERE customer_id = 'CUST001'",
     )
     conn.execute(
-        "INSERT OR IGNORE INTO shops (shop_id, shop_name) VALUES (?, ?)",
+        "INSERT OR IGNORE INTO shops (shop_id, shop_name, owner_name, phone, address) VALUES (?, ?, 'Shivansh G', '+91 98765 43210', 'Raipur, Chhattisgarh')",
         (SHOP_ID, SHOP_NAME),
     )
     conn.execute(

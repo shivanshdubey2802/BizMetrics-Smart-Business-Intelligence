@@ -133,6 +133,64 @@ def get_db_cursor(commit: bool = True, db_path: Path | str | None = None) -> Gen
 
 _INITIALIZED_DBS: set[str] = set()
 
+def _migrate_database_schema(cur: sqlite3.Cursor) -> None:
+    """
+    Safely and idempotently verifies table schemas, adding any missing columns
+    to preserve existing data on databases without deleting or resetting anything.
+    """
+    try:
+        # Check shops table
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='shops'")
+        if cur.fetchone():
+            cur.execute("PRAGMA table_info(shops)")
+            cols = {row[1] if isinstance(row, tuple) else row["name"] for row in cur.fetchall()}
+            if "owner_name" not in cols:
+                cur.execute("ALTER TABLE shops ADD COLUMN owner_name TEXT DEFAULT 'Shivansh G'")
+            if "phone" not in cols:
+                cur.execute("ALTER TABLE shops ADD COLUMN phone TEXT DEFAULT '+91 98765 43210'")
+            if "address" not in cols:
+                cur.execute("ALTER TABLE shops ADD COLUMN address TEXT DEFAULT 'Raipur, Chhattisgarh'")
+
+        # Check users table
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        if cur.fetchone():
+            cur.execute("PRAGMA table_info(users)")
+            cols = {row[1] if isinstance(row, tuple) else row["name"] for row in cur.fetchall()}
+            if "role" not in cols:
+                cur.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'Owner'")
+            if "shop_id" not in cols:
+                cur.execute("ALTER TABLE users ADD COLUMN shop_id TEXT NOT NULL DEFAULT 'shivansh_electronics_hardware'")
+
+        # Check customers table
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='customers'")
+        if cur.fetchone():
+            cur.execute("PRAGMA table_info(customers)")
+            cols = {row[1] if isinstance(row, tuple) else row["name"] for row in cur.fetchall()}
+            if "shop_id" not in cols:
+                cur.execute("ALTER TABLE customers ADD COLUMN shop_id TEXT NOT NULL DEFAULT 'shivansh_electronics_hardware'")
+            if "outstanding_amount" not in cols:
+                cur.execute("ALTER TABLE customers ADD COLUMN outstanding_amount REAL DEFAULT 0.0")
+
+        # Check customer_notifications table
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_notifications'")
+        if cur.fetchone():
+            cur.execute("PRAGMA table_info(customer_notifications)")
+            cols = {row[1] if isinstance(row, tuple) else row["name"] for row in cur.fetchall()}
+            if "category" not in cols:
+                cur.execute("ALTER TABLE customer_notifications ADD COLUMN category TEXT NOT NULL DEFAULT 'Announcement'")
+            if "action_link" not in cols:
+                cur.execute("ALTER TABLE customer_notifications ADD COLUMN action_link TEXT")
+
+        # Check customer_support_tickets table
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_support_tickets'")
+        if cur.fetchone():
+            cur.execute("PRAGMA table_info(customer_support_tickets)")
+            cols = {row[1] if isinstance(row, tuple) else row["name"] for row in cur.fetchall()}
+            if "priority" not in cols:
+                cur.execute("ALTER TABLE customer_support_tickets ADD COLUMN priority TEXT DEFAULT 'Medium'")
+    except Exception as exc:
+        print(f"Notice: schema migration check: {exc}")
+
 def init_database(db_path: Path | str | None = None) -> None:
     """
     Creates and verifies all required tables, indexes, and views for BizMetrics.
@@ -142,6 +200,9 @@ def init_database(db_path: Path | str | None = None) -> None:
     if target in _INITIALIZED_DBS:
         return
     with get_db_cursor(commit=True, db_path=db_path) as cur:
+        # 0. Run idempotent schema migration checks first
+        _migrate_database_schema(cur)
+
         # 1. SHOPS
         cur.execute(
             """
@@ -743,23 +804,8 @@ def init_database(db_path: Path | str | None = None) -> None:
         )
 
         # SEED DEFAULT SHOP & OWNER USER
-        cur.execute(
-            """
-            INSERT INTO shops (shop_id, shop_name, owner_name, phone, address)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(shop_id) DO UPDATE SET
-                shop_name = excluded.shop_name,
-                owner_name = excluded.owner_name
-            """,
-            (DEFAULT_SHOP_ID, DEFAULT_SHOP_NAME, DEFAULT_OWNER_NAME, "+91 98765 43210", "Raipur, Chhattisgarh"),
-        )
-
-        # Seed Multi-Branch Network (Multi-Shop Management)
-        branches = [
-            ("shivansh_bhilai_branch", "Shivansh Electronics - Bhilai Branch", "Shivansh G", "+91 98765 43211", "Power House Market, Bhilai Nagar"),
-            ("shivansh_durg_branch", "Shivansh Hardware - Durg Branch", "Shivansh G", "+91 98765 43212", "Station Road Commercial Hub, Durg")
-        ]
-        for b_id, b_name, b_owner, b_phone, b_addr in branches:
+        _migrate_database_schema(cur)
+        try:
             cur.execute(
                 """
                 INSERT INTO shops (shop_id, shop_name, owner_name, phone, address)
@@ -768,8 +814,30 @@ def init_database(db_path: Path | str | None = None) -> None:
                     shop_name = excluded.shop_name,
                     owner_name = excluded.owner_name
                 """,
-                (b_id, b_name, b_owner, b_phone, b_addr),
+                (DEFAULT_SHOP_ID, DEFAULT_SHOP_NAME, DEFAULT_OWNER_NAME, "+91 98765 43210", "Raipur, Chhattisgarh"),
             )
+        except Exception as exc:
+            print(f"Notice: shop seed: {exc}")
+
+        # Seed Multi-Branch Network (Multi-Shop Management)
+        branches = [
+            ("shivansh_bhilai_branch", "Shivansh Electronics - Bhilai Branch", "Shivansh G", "+91 98765 43211", "Power House Market, Bhilai Nagar"),
+            ("shivansh_durg_branch", "Shivansh Hardware - Durg Branch", "Shivansh G", "+91 98765 43212", "Station Road Commercial Hub, Durg")
+        ]
+        for b_id, b_name, b_owner, b_phone, b_addr in branches:
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO shops (shop_id, shop_name, owner_name, phone, address)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(shop_id) DO UPDATE SET
+                        shop_name = excluded.shop_name,
+                        owner_name = excluded.owner_name
+                    """,
+                    (b_id, b_name, b_owner, b_phone, b_addr),
+                )
+            except Exception as exc:
+                print(f"Notice: branch seed: {exc}")
 
         # Seed Default GST Config
         cur.execute(
@@ -1730,62 +1798,14 @@ def create_customer_support_ticket(
 
 def get_customer_notifications(customer_id: str, shop_id: str = DEFAULT_SHOP_ID) -> list[dict]:
     """Retrieve all notifications for this customer, seeding default authentic notifications if empty."""
-    init_database()
-    cid = str(customer_id).strip()
-    notifs = query_records(
-        """
-        SELECT notification_id, shop_id, customer_id, title, message, category, is_read, action_link, created_at
-        FROM customer_notifications
-        WHERE customer_id = ? OR customer_id = 'ALL'
-        ORDER BY created_at DESC
-        """,
-        (cid,),
-    )
+    try:
+        init_database()
+    except Exception as exc:
+        print(f"Notice: init_database in get_customer_notifications: {exc}")
 
-    if not notifs:
-        # Seed default authentic notifications for the customer
-        default_items = [
-            (
-                f"NOTIF-{cid}-001",
-                shop_id,
-                cid,
-                "Welcome to Shivansh Electronics & Hardware Portal",
-                "Your customer account and digital ledger have been securely verified. Enjoy paperless billing and express checkout.",
-                "System",
-                0,
-                None,
-            ),
-            (
-                f"NOTIF-{cid}-002",
-                shop_id,
-                cid,
-                "Festive Wholesale Supply & Bulk Cable Offers",
-                "Special 5% trade discount on premium copper cabling and industrial circuit breakers this month.",
-                "Offer",
-                0,
-                None,
-            ),
-            (
-                f"NOTIF-{cid}-003",
-                shop_id,
-                cid,
-                "Khata Ledger & GST Invoicing Synchronized",
-                "Your registered contact and billing records are synced with GST-compliant tax invoicing.",
-                "Announcement",
-                0,
-                None,
-            ),
-        ]
-        with get_db_cursor(commit=True) as cur:
-            for item in default_items:
-                cur.execute(
-                    """
-                    INSERT OR IGNORE INTO customer_notifications
-                    (notification_id, shop_id, customer_id, title, message, category, is_read, action_link)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    item,
-                )
+    cid = str(customer_id).strip()
+    notifs = []
+    try:
         notifs = query_records(
             """
             SELECT notification_id, shop_id, customer_id, title, message, category, is_read, action_link, created_at
@@ -1795,7 +1815,68 @@ def get_customer_notifications(customer_id: str, shop_id: str = DEFAULT_SHOP_ID)
             """,
             (cid,),
         )
-    return notifs
+    except Exception as exc:
+        print(f"Notice: query_records in get_customer_notifications: {exc}")
+        notifs = []
+
+    if not notifs:
+        try:
+            # Seed default authentic notifications for the customer
+            default_items = [
+                (
+                    f"NOTIF-{cid}-001",
+                    shop_id,
+                    cid,
+                    "Welcome to Shivansh Electronics & Hardware Portal",
+                    "Your customer account and digital ledger have been securely verified. Enjoy paperless billing and express checkout.",
+                    "System",
+                    0,
+                    None,
+                ),
+                (
+                    f"NOTIF-{cid}-002",
+                    shop_id,
+                    cid,
+                    "Festive Wholesale Supply & Bulk Cable Offers",
+                    "Special 5% trade discount on premium copper cabling and industrial circuit breakers this month.",
+                    "Offer",
+                    0,
+                    None,
+                ),
+                (
+                    f"NOTIF-{cid}-003",
+                    shop_id,
+                    cid,
+                    "Khata Ledger & GST Invoicing Synchronized",
+                    "Your registered contact and billing records are synced with GST-compliant tax invoicing.",
+                    "Announcement",
+                    0,
+                    None,
+                ),
+            ]
+            with get_db_cursor(commit=True) as cur:
+                for item in default_items:
+                    cur.execute(
+                        """
+                        INSERT OR IGNORE INTO customer_notifications
+                        (notification_id, shop_id, customer_id, title, message, category, is_read, action_link)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        item,
+                    )
+            notifs = query_records(
+                """
+                SELECT notification_id, shop_id, customer_id, title, message, category, is_read, action_link, created_at
+                FROM customer_notifications
+                WHERE customer_id = ? OR customer_id = 'ALL'
+                ORDER BY created_at DESC
+                """,
+                (cid,),
+            )
+        except Exception as exc:
+            print(f"Notice: seeding notifications in get_customer_notifications: {exc}")
+
+    return notifs if notifs is not None else []
 
 
 def mark_notification_as_read(notification_id: str) -> bool:

@@ -247,9 +247,12 @@ def render_customer_portal():
     # Compute Loyalty Points and Tier
     tier_name, tier_color, loyalty_pts, cur_spend, next_req = _compute_loyalty_tier(tot_purchase)
 
-    # Fetch notifications from database
-    cust_notifs = get_customer_notifications(current_id)
-    unread_notifs = [n for n in cust_notifs if not n.get("is_read", 0)]
+    # Fetch notifications from database safely
+    try:
+        cust_notifs = get_customer_notifications(current_id)
+    except Exception:
+        cust_notifs = []
+    unread_notifs = [n for n in (cust_notifs or []) if not n.get("is_read", 0)]
 
     # --------------------------------------------------------------------------
     # 2. ACTIVE NAVIGATION & SECTION MANAGEMENT
