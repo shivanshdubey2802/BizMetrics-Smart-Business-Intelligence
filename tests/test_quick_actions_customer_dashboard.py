@@ -41,9 +41,9 @@ def customer_app():
 
 def test_quick_action_profile(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None, "Sidebar radio 'customer_nav_selection' not found"
-    radio.set_value("Profile & Account").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Profile_&_Account")
+    assert btn is not None, "Sidebar button 'cust_nav_btn_Profile_&_Account' not found"
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Profile: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Profile & Account"
     assert at.session_state["customer_id"] == "CUST001"
@@ -58,9 +58,9 @@ def test_quick_action_profile(customer_app):
 
 def test_quick_action_orders(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("Order History").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Order_History")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Orders: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Order History"
     assert at.session_state["customer_id"] == "CUST001"
@@ -75,9 +75,9 @@ def test_quick_action_orders(customer_app):
 
 def test_quick_action_invoices(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("Digital Invoices").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Digital_Invoices")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Invoices: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Digital Invoices"
     assert at.session_state["customer_id"] == "CUST001"
@@ -92,9 +92,9 @@ def test_quick_action_invoices(customer_app):
 
 def test_quick_action_dues(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("Outstanding Dues").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Outstanding_Dues")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Dues: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Outstanding Dues"
     assert at.session_state["customer_id"] == "CUST001"
@@ -109,9 +109,9 @@ def test_quick_action_dues(customer_app):
 
 def test_quick_action_insights(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("Customer Insights").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Customer_Insights")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Insights: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Customer Insights"
     assert at.session_state["customer_id"] == "CUST001"
@@ -126,9 +126,9 @@ def test_quick_action_insights(customer_app):
 
 def test_quick_action_rewards(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("Loyalty & Rewards").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Loyalty_&_Rewards")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Rewards: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Loyalty & Rewards"
     assert at.session_state["customer_id"] == "CUST001"
@@ -143,9 +143,9 @@ def test_quick_action_rewards(customer_app):
 
 def test_quick_action_qr_pass(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("QR Code Pass").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_QR_Code_Pass")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting QR Pass: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "QR Code Pass"
     assert at.session_state["customer_id"] == "CUST001"
@@ -160,9 +160,9 @@ def test_quick_action_qr_pass(customer_app):
 
 def test_quick_action_support(customer_app):
     at = customer_app
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None
-    radio.set_value("Support Center").run(timeout=30)
+    btn = at.sidebar.button(key="cust_nav_btn_Support_Center")
+    assert btn is not None
+    btn.click().run(timeout=30)
     assert not at.exception, f"Crash selecting Support: {[e.message for e in at.exception]}"
     assert at.session_state["customer_active_section"] == "Support Center"
     assert at.session_state["customer_id"] == "CUST001"

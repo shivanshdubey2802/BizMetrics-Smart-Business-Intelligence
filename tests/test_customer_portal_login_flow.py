@@ -32,10 +32,13 @@ def test_authenticated_customer_renders_no_login_form():
     assert "btn_landing_customer_login" not in button_keys, "Landing login button should NOT exist when authenticated"
     assert "btn_route2_customer_login" not in button_keys, "Route2 login button should NOT exist when authenticated"
 
-    # Verify customer sidebar is present and has the radio navigation
-    radio = at.sidebar.radio(key="customer_nav_selection")
-    assert radio is not None, "Customer navigation radio must exist in sidebar"
-    assert radio.value == "Dashboard"
+    # Verify single clean vertical navigation menu is present and duplicate radio is removed
+    sidebar_radios = [r.key for r in at.sidebar.radio]
+    assert "customer_nav_selection" not in sidebar_radios, "Duplicate customer nav radio must NOT exist"
+
+    for item in CUSTOMER_NAV_ITEMS:
+        btn_key = f"cust_nav_btn_{item.replace(' ', '_')}"
+        assert at.sidebar.button(key=btn_key) is not None, f"Customer nav button {btn_key} must exist in sidebar"
 
     # Verify all 10 items are plain text (no emojis)
     emojis = ["🏠", "👤", "📦", "🧾", "⚠️", "📱", "🎁", "📊", "🔔", "💬"]

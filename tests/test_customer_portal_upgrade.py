@@ -200,10 +200,10 @@ def test_customer_portal_tab_navigation_no_widget_conflict():
     from components.sidebar import CUSTOMER_NAV_ITEMS
 
     for item in CUSTOMER_NAV_ITEMS:
-        radio = at.sidebar.radio(key="customer_nav_selection")
-        assert radio is not None, "Sidebar radio key 'customer_nav_selection' not found"
-        radio.set_value(item).run(timeout=30)
-        assert not at.exception, f"Exception selecting {item} in sidebar radio: {[e.message for e in at.exception]}"
+        btn = at.sidebar.button(key=f"cust_nav_btn_{item.replace(' ', '_')}")
+        assert btn is not None, f"Sidebar button key 'cust_nav_btn_{item}' not found"
+        btn.click().run(timeout=30)
+        assert not at.exception, f"Exception selecting {item} in sidebar: {[e.message for e in at.exception]}"
         assert at.session_state["customer_id"] == "CUST001"
         assert at.session_state["customer_name"] == "Shivansh"
 
@@ -216,7 +216,7 @@ def test_customer_portal_tab_navigation_no_widget_conflict():
             assert at.session_state["customer_active_section"] == "Dashboard"
 
     # Test Dashboard contextual links
-    at.sidebar.radio(key="customer_nav_selection").set_value("Dashboard").run(timeout=30)
+    at.sidebar.button(key="cust_nav_btn_Dashboard").click().run(timeout=30)
     assert not at.exception
 
     orders_btn = at.button(key="btn_dash_view_all_orders")

@@ -166,6 +166,15 @@ def render_customer_sidebar():
                     font-family: 'Inter', sans-serif !important;
                 }}
 
+                /* Eliminate excess vertical gap and margins between sidebar widgets */
+                [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{
+                    gap: 0.15rem !important;
+                }}
+                [data-testid="stSidebar"] [data-testid="stElementContainer"] {{
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }}
+
                 /* =========================================================================
                    CUSTOMER NAVIGATION: EXACT MATCH TO OWNER DASHBOARD SIDEBAR NAVIGATION
                    ========================================================================= */
@@ -180,7 +189,7 @@ def render_customer_sidebar():
                 [data-testid="stSidebar"] div.stButton > button[kind="secondary"],
                 [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-secondary"] {{
                     width: 100% !important;
-                    padding: 0.45rem 0.75rem !important;
+                    padding: 0.35rem 0.75rem !important;
                     margin: 1px 0 !important;
                     border-radius: 4px 8px 8px 4px !important;
                     background-color: transparent !important;
@@ -190,13 +199,14 @@ def render_customer_sidebar():
                     border-top: 1px solid transparent !important;
                     border-right: 1px solid transparent !important;
                     border-bottom: 1px solid transparent !important;
-                    transition: all 0.18s ease-in-out !important;
+                    transition: all 0.15s ease-in-out !important;
                     display: flex !important;
                     align-items: center !important;
                     justify-content: flex-start !important;
                     text-align: left !important;
                     box-shadow: none !important;
-                    min-height: 2.2rem !important;
+                    min-height: 2.05rem !important;
+                    height: 2.05rem !important;
                     cursor: pointer !important;
                     outline: none !important;
                 }}
@@ -212,14 +222,14 @@ def render_customer_sidebar():
                 [data-testid="stSidebar"] div.stButton > button div[data-testid="stMarkdownContainer"],
                 [data-testid="stSidebar"] div.stButton > button p,
                 [data-testid="stSidebar"] div.stButton > button span {{
-                    font-size: 0.92rem !important;
+                    font-size: 0.90rem !important;
                     font-weight: 500 !important;
                     color: #2D3748 !important;
                     font-family: 'Inter', sans-serif !important;
-                    transition: color 0.18s ease-in-out !important;
+                    transition: color 0.15s ease-in-out !important;
                     text-align: left !important;
                     margin: 0 !important;
-                    line-height: 1.4 !important;
+                    line-height: 1.3 !important;
                     letter-spacing: -0.01em !important;
                     display: block !important;
                     width: 100% !important;
@@ -236,7 +246,7 @@ def render_customer_sidebar():
                 [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"],
                 .cust-nav-btn.cust-nav-active [data-testid="stButton"] button {{
                     width: 100% !important;
-                    padding: 0.45rem 0.75rem !important;
+                    padding: 0.35rem 0.75rem !important;
                     margin: 1px 0 !important;
                     background-color: #E6F4F1 !important;
                     background: #E6F4F1 !important;
@@ -246,12 +256,13 @@ def render_customer_sidebar():
                     border-right: 1px solid rgba(13, 148, 136, 0.15) !important;
                     border-bottom: 1px solid rgba(13, 148, 136, 0.15) !important;
                     border-radius: 4px 8px 8px 4px !important;
-                    box-shadow: 0 1px 3px rgba(13, 148, 136, 0.12) !important;
+                    box-shadow: 0 1px 2px rgba(13, 148, 136, 0.10) !important;
                     display: flex !important;
                     align-items: center !important;
                     justify-content: flex-start !important;
                     text-align: left !important;
-                    min-height: 2.2rem !important;
+                    min-height: 2.05rem !important;
+                    height: 2.05rem !important;
                 }}
 
                 [data-testid="stSidebar"] div.stButton > button[kind="primary"] div[data-testid="stMarkdownContainer"],
@@ -292,8 +303,8 @@ def render_customer_sidebar():
 
                 /* Footer logout button container */
                 .sidebar-footer-container {{
-                    margin-top: 1.1rem;
-                    padding-top: 0.75rem;
+                    margin-top: 0.75rem;
+                    padding-top: 0.55rem;
                     border-top: 1px solid rgba(41, 38, 34, 0.12);
                 }}
 
@@ -401,26 +412,7 @@ def render_customer_sidebar():
                 args=(item,)
             )
 
-        # Hidden radio widget to maintain full compatibility with automated test suites
-        def _on_customer_radio_change():
-            sel = st.session_state.get("customer_nav_selection", CUSTOMER_NAV_ITEMS[0])
-            st.session_state["customer_active_section"] = CUSTOMER_NAV_ALIASES.get(sel, sel)
-            st.session_state["_last_synced_nav"] = sel
 
-        def _format_nav_label(item: str) -> str:
-            display_name = friendly_names.get(item, item)
-            return t(display_name, lang)
-
-        radio_idx = None if "customer_nav_selection" in st.session_state else (CUSTOMER_NAV_ITEMS.index(curr_sec) if curr_sec in CUSTOMER_NAV_ITEMS else 0)
-        st.radio(
-            "CUSTOMER",
-            CUSTOMER_NAV_ITEMS,
-            index=radio_idx,
-            format_func=_format_nav_label,
-            key="customer_nav_selection",
-            on_change=_on_customer_radio_change,
-            label_visibility="collapsed"
-        )
 
         # Bottom Language & Logout
         st.markdown('<div class="sidebar-footer-container"></div>', unsafe_allow_html=True)
