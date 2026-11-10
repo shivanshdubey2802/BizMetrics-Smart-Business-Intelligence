@@ -432,6 +432,27 @@ def get_customer_credentials_for_shop(shop_id):
 
 
 def get_customer_dashboard_data(shop_id, customer_id):
+    """Returns aggregated customer profile and transaction summary using centralized database."""
+    try:
+        from customer_qr_bills import _get_customer_profile, get_customer_bills, get_bill_summary
+        profile = _get_customer_profile(customer_id)
+        bills = get_customer_bills(customer_id)
+        if not bills.empty or (profile and profile.get("customer_name") not in ["Valued Customer", f"Customer {customer_id}"]):
+            summary = get_bill_summary(bills)
+            return {
+                "profile": profile,
+                "orders": summary.get("total_bills", 0),
+                "spent": summary.get("total_purchase", 0.0),
+                "average_order_value": summary.get("avg_bill", 0.0),
+                "last_purchase": summary.get("last_purchase", "N/A"),
+                "outstanding": summary.get("outstanding", 0.0),
+                "paid": summary.get("paid_amount", 0.0),
+                "bills": bills,
+                "history": bills.to_dict(orient="records") if not bills.empty else [],
+            }
+    except Exception:
+        pass
+
     raw_data = st.session_state.get("raw_data")
     if raw_data is None or (isinstance(raw_data, pd.DataFrame) and raw_data.empty):
         try:

@@ -401,56 +401,42 @@ def render_customer_portal():
         )
         render_html(banner_html)
 
-        # 2. CUSTOMER KPI CARDS (6 RESPONSIVE BUSINESS METRICS)
-        k1, k2, k3, k4, k5, k6 = st.columns(6)
-        with k1:
-            render_html(
-                f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #6366F1; border-radius:10px; padding:0.9rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
-                f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">📦 {tr("TOTAL ORDERS", "कुल ऑर्डर", "TOTAL ORDERS")}</div>'
-                f'<div style="font-size:1.55rem; font-weight:800; color:#1E293B; margin-top:2px;">{tot_orders}</div>'
-                f'<div style="font-size:0.68rem; color:#6366F1; margin-top:2px;">{tr("Verified sales", "सत्यापित लेन-देन", "Verified Orders")}</div>'
-                f'</div>'
-            )
-        with k2:
-            render_html(
-                f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #2563EB; border-radius:10px; padding:0.9rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
-                f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">💰 {tr("TOTAL PURCHASE", "कुल खरीदारी", "TOTAL KHARIDARI")}</div>'
-                f'<div style="font-size:1.55rem; font-weight:800; color:#2563EB; margin-top:2px;">{format_currency(tot_purchase)}</div>'
-                f'<div style="font-size:0.68rem; color:#64748B; margin-top:2px;">{tr("Gross business value", "सकल व्यापार", "Total Kharidari")}</div>'
-                f'</div>'
-            )
-        with k3:
-            render_html(
-                f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #059669; border-radius:10px; padding:0.9rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
-                f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">✓ {tr("TOTAL PAID", "कुल भुगतान", "TOTAL PAYMENT DIYA")}</div>'
-                f'<div style="font-size:1.55rem; font-weight:800; color:#059669; margin-top:2px;">{format_currency(paid_amt)}</div>'
-                f'<div style="font-size:0.68rem; color:#059669; margin-top:2px;">✓ {tr("Settled funds", "निपटाया गया", "Chukta Payment")}</div>'
-                f'</div>'
-            )
-        with k4:
-            render_html(
-                f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid {"#059669" if outstanding_amt == 0 else "#EA580C"}; border-radius:10px; padding:0.9rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
-                f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">⚠️ {tr("OUTSTANDING DUES", "बकाया राशि", "BAAKI PAYMENT")}</div>'
-                f'<div style="font-size:1.55rem; font-weight:800; color:{"#059669" if outstanding_amt == 0 else "#EA580C"}; margin-top:2px;">{format_currency(outstanding_amt)}</div>'
-                f'<div style="font-size:0.68rem; color:{"#059669" if outstanding_amt == 0 else "#EA580C"}; margin-top:2px;">{tr("✓ No pending dues", "✓ कोई बकाया नहीं", "✓ Koi Baaki Nahi") if outstanding_amt == 0 else tr("Pending khata", "लंबित खाता", "Pending Baaki Khata")}</div>'
-                f'</div>'
-            )
-        with k5:
-            render_html(
-                f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #0D9488; border-radius:10px; padding:0.9rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
-                f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">📊 {tr("AVG ORDER (AOV)", "औसत ऑर्डर", "AVERAGE ORDER")}</div>'
-                f'<div style="font-size:1.55rem; font-weight:800; color:#1E293B; margin-top:2px;">{format_currency(avg_order)}</div>'
-                f'<div style="font-size:0.68rem; color:#0D9488; margin-top:2px;">{tr("Per invoice mean", "प्रति बिल औसत", "Prati Bill Average")}</div>'
-                f'</div>'
-            )
-        with k6:
-            render_html(
-                f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid {tier_color}; border-radius:10px; padding:0.9rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
-                f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">🎁 {tr("LOYALTY POINTS", "रिवॉर्ड पॉइंट्स", "REWARD POINTS")}</div>'
-                f'<div style="font-size:1.55rem; font-weight:800; color:{tier_color}; margin-top:2px;">{loyalty_pts:,} pts</div>'
-                f'<div style="font-size:0.68rem; color:{tier_color}; margin-top:2px;">★ {tier_name.split()[0]}</div>'
-                f'</div>'
-            )
+        # 2. CUSTOMER KPI CARDS (6 RESPONSIVE BUSINESS METRICS IN FLEXIBLE AUTO-FITTING GRID)
+        kpi_grid_html = (
+            f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 0.8rem; width: 100%; box-sizing: border-box;">'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #6366F1; border-radius:10px; padding:0.85rem 0.6rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width: 130px; box-sizing: border-box;">'
+            f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">📦 {tr("TOTAL ORDERS", "कुल ऑर्डर", "TOTAL ORDERS")}</div>'
+            f'<div style="font-size:1.55rem; font-weight:800; color:#1E293B; margin-top:2px;">{tot_orders}</div>'
+            f'<div style="font-size:0.68rem; color:#6366F1; margin-top:2px;">{tr("Verified sales", "सत्यापित लेन-देन", "Verified Orders")}</div>'
+            f'</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #2563EB; border-radius:10px; padding:0.85rem 0.6rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width: 130px; box-sizing: border-box;">'
+            f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">💰 {tr("TOTAL PURCHASE", "कुल खरीदारी", "TOTAL KHARIDARI")}</div>'
+            f'<div style="font-size:1.55rem; font-weight:800; color:#2563EB; margin-top:2px;">{format_currency(tot_purchase)}</div>'
+            f'<div style="font-size:0.68rem; color:#64748B; margin-top:2px;">{tr("Gross business value", "सकल व्यापार", "Total Kharidari")}</div>'
+            f'</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #059669; border-radius:10px; padding:0.85rem 0.6rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width: 130px; box-sizing: border-box;">'
+            f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">✓ {tr("TOTAL PAID", "कुल भुगतान", "TOTAL PAYMENT DIYA")}</div>'
+            f'<div style="font-size:1.55rem; font-weight:800; color:#059669; margin-top:2px;">{format_currency(paid_amt)}</div>'
+            f'<div style="font-size:0.68rem; color:#059669; margin-top:2px;">✓ {tr("Settled funds", "निपटाया गया", "Chukta Payment")}</div>'
+            f'</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid {"#059669" if outstanding_amt == 0 else "#EA580C"}; border-radius:10px; padding:0.85rem 0.6rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width: 130px; box-sizing: border-box;">'
+            f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">⚠️ {tr("OUTSTANDING DUES", "बकाया राशि", "BAAKI PAYMENT")}</div>'
+            f'<div style="font-size:1.55rem; font-weight:800; color:{"#059669" if outstanding_amt == 0 else "#EA580C"}; margin-top:2px;">{format_currency(outstanding_amt)}</div>'
+            f'<div style="font-size:0.68rem; color:{"#059669" if outstanding_amt == 0 else "#EA580C"}; margin-top:2px;">{tr("✓ No pending dues", "✓ कोई बकाया नहीं", "✓ Koi Baaki Nahi") if outstanding_amt == 0 else tr("Pending khata", "लंबित खाता", "Pending Baaki Khata")}</div>'
+            f'</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid #0D9488; border-radius:10px; padding:0.85rem 0.6rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width: 130px; box-sizing: border-box;">'
+            f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">📊 {tr("AVG ORDER (AOV)", "औसत ऑर्डर", "AVERAGE ORDER")}</div>'
+            f'<div style="font-size:1.55rem; font-weight:800; color:#1E293B; margin-top:2px;">{format_currency(avg_order)}</div>'
+            f'<div style="font-size:0.68rem; color:#0D9488; margin-top:2px;">{tr("Per invoice mean", "प्रति बिल औसत", "Prati Bill Average")}</div>'
+            f'</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top: 3px solid {tier_color}; border-radius:10px; padding:0.85rem 0.6rem; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.02); min-width: 130px; box-sizing: border-box;">'
+            f'<div style="font-size:0.7rem; font-weight:700; color:#64748B; text-transform:uppercase;">🎁 {tr("LOYALTY POINTS", "रिवॉर्ड पॉइंट्स", "REWARD POINTS")}</div>'
+            f'<div style="font-size:1.55rem; font-weight:800; color:{tier_color}; margin-top:2px;">{loyalty_pts:,} pts</div>'
+            f'<div style="font-size:0.68rem; color:{tier_color}; margin-top:2px;">★ {tier_name.split()[0]}</div>'
+            f'</div>'
+            f'</div>'
+        )
+        render_html(kpi_grid_html)
 
         render_html("<div style='height: 0.95rem;'></div>")
 

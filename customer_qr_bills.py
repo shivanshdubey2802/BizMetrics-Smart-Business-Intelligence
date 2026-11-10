@@ -168,7 +168,7 @@ def get_all_customers():
                         })
 
     if not cust_list:
-        cust_list = [{"id": "CUST001", "name": "Shivansh", "business": "Shivansh Electronics and Hardware", "mobile": "9876543337", "display": "CUST001 — Shivansh (Shivansh Electronics and Hardware)"}]
+        cust_list = [{"id": "CUST001", "name": "Shivansh", "business": "Shivansh Retail Shop", "mobile": "9876540001", "display": "CUST001 — Shivansh (Shivansh Retail Shop)"}]
 
     # Guarantee CUST001 is present for login and test compatibility
     existing_ids = {c["id"].upper() for c in cust_list}
@@ -176,9 +176,9 @@ def get_all_customers():
         cust_list.insert(0, {
             "id": "CUST001",
             "name": st.session_state.get("customer_name") or "Shivansh",
-            "business": "Shivansh Electronics and Hardware",
-            "mobile": "9876543337",
-            "display": f"CUST001 — {st.session_state.get('customer_name') or 'Shivansh'} (Shivansh Electronics and Hardware)"
+            "business": "Shivansh Retail Shop",
+            "mobile": "9876540001",
+            "display": f"CUST001 — {st.session_state.get('customer_name') or 'Shivansh'} (Shivansh Retail Shop)"
         })
 
     return cust_list
@@ -195,14 +195,9 @@ def clear_customer_profile_cache(customer_id: str | None = None):
 
 def _get_customer_profile(customer_id):
     c_id = str(customer_id).strip()
-    variants = _get_id_variants(c_id)
-    raw_data = st.session_state.get("raw_data", None)
-    if raw_data is not None and isinstance(raw_data, pd.DataFrame) and not raw_data.empty:
-        cid_col = next((c for c in raw_data.columns if c.lower() in ["customer_id", "customerid"]), None)
-        if cid_col:
-            customer_rows = raw_data[raw_data[cid_col].astype(str).str.strip().isin(variants)]
-            if not customer_rows.empty:
-                return dict(_fetch_customer_profile_uncached(c_id))
+    raw_df = st.session_state.get("raw_data")
+    if raw_df is not None and isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
+        return dict(_fetch_customer_profile_uncached(c_id))
     if c_id in _CUSTOMER_PROFILE_CACHE:
         return dict(_CUSTOMER_PROFILE_CACHE[c_id])
     prof = _fetch_customer_profile_uncached(c_id)
@@ -212,9 +207,8 @@ def _get_customer_profile(customer_id):
 def _fetch_customer_profile_uncached(customer_id):
     c_id = str(customer_id).strip()
     variants = _get_id_variants(c_id)
-    profile = {}
 
-    # 1. Check raw_data in session state first if available
+    # 1. Custom active uploaded dataset in session state (if it has records for this customer)
     raw_data = st.session_state.get("raw_data", None)
     if raw_data is not None and isinstance(raw_data, pd.DataFrame) and not raw_data.empty:
         cid_col = next((c for c in raw_data.columns if c.lower() in ["customer_id", "customerid"]), None)
@@ -233,26 +227,29 @@ def _fetch_customer_profile_uncached(customer_id):
                 b_name = row_dict.get("Business_Name", row_dict.get("business_name", ""))
                 if not b_name and c_id.upper() in {"CUST001", "CUST_DEMO_01"}:
                     b_name = "Shivansh Electronics and Hardware"
-                return {
-                    "customer_id": c_id,
-                    "Customer_ID": c_id,
-                    "customer_name": c_name,
-                    "Customer_Name": c_name,
-                    "business_name": b_name,
-                    "Business_Name": b_name,
-                    "mobile_number": str(row_dict.get("Contact_Number", row_dict.get("Mobile_Number", row_dict.get("mobile_number", "9876543337")))),
-                    "Mobile_Number": str(row_dict.get("Contact_Number", row_dict.get("Mobile_Number", row_dict.get("mobile_number", "9876543337")))),
-                    "email": row_dict.get("Email", row_dict.get("email", "")),
-                    "city": row_dict.get("City", row_dict.get("city", "Raipur")),
-                    "City": row_dict.get("City", row_dict.get("city", "Raipur")),
-                    "customer_type": row_dict.get("Customer_Type", row_dict.get("customer_type", "Retail Customer")),
-                    "Customer_Type": row_dict.get("Customer_Type", row_dict.get("customer_type", "Retail Customer")),
-                    "registration_date": str(row_dict.get("Registration_Date", row_dict.get("registration_date", "2024-01-01"))),
-                    "customer_rating": float(row_dict.get("Customer_Rating", row_dict.get("customer_rating", 4.5))),
-                    "outstanding_amount": float(row_dict.get("Outstanding_Amount", row_dict.get("outstanding_amount", 0.0))),
-                }
+                raw_mob = str(row_dict.get("Contact_Number", row_dict.get("Mobile_Number", row_dict.get("mobile_number", ""))))
+                if raw_mob and raw_mob.lower() not in {"nan", "<na>", "none"}:
+                    return {
+                        "customer_id": c_id,
+                        "Customer_ID": c_id,
+                        "customer_name": c_name,
+                        "Customer_Name": c_name,
+                        "business_name": b_name,
+                        "Business_Name": b_name,
+                        "mobile_number": raw_mob,
+                        "Mobile_Number": raw_mob,
+                        "email": str(row_dict.get("Email", row_dict.get("email", ""))),
+                        "address": str(row_dict.get("Address", row_dict.get("address", ""))),
+                        "city": str(row_dict.get("City", row_dict.get("city", "Raipur"))),
+                        "City": str(row_dict.get("City", row_dict.get("city", "Raipur"))),
+                        "customer_type": str(row_dict.get("Customer_Type", row_dict.get("customer_type", "Retail Customer"))),
+                        "Customer_Type": str(row_dict.get("Customer_Type", row_dict.get("customer_type", "Retail Customer"))),
+                        "registration_date": str(row_dict.get("Registration_Date", row_dict.get("registration_date", "2024-01-01"))),
+                        "customer_rating": float(row_dict.get("Customer_Rating", row_dict.get("customer_rating", 4.5))),
+                        "outstanding_amount": float(row_dict.get("Outstanding_Amount", row_dict.get("outstanding_amount", 0.0))),
+                    }
 
-    # 1b. Check centralized relational database
+    # 2. Primary Persistent Source: Centralized SQLite Relational Database
     try:
         from utils.database import get_customer_detail_from_db
         db_cust = None
@@ -261,12 +258,11 @@ def _fetch_customer_profile_uncached(customer_id):
             if db_cust:
                 break
         if db_cust:
-            c_name = db_cust.get("customer_name", "Customer")
+            c_name = db_cust.get("customer_name") or "Customer"
             if c_id.upper() in {"CUST001", "CUST01", "SHIVANSH"} and st.session_state.get("customer_name"):
                 c_name = st.session_state.get("customer_name", "Shivansh")
-            b_name = db_cust.get("business_name", "")
-            if not b_name and c_id.upper() in {"CUST001", "CUST_DEMO_01"}:
-                b_name = "Shivansh Electronics and Hardware"
+            b_name = db_cust.get("business_name") or ("Shivansh Electronics and Hardware" if c_id.upper() in {"CUST001", "CUST_DEMO_01"} else "")
+            mob = str(db_cust.get("contact_number") or "")
             return {
                 "customer_id": c_id,
                 "Customer_ID": c_id,
@@ -274,44 +270,22 @@ def _fetch_customer_profile_uncached(customer_id):
                 "Customer_Name": c_name,
                 "business_name": b_name,
                 "Business_Name": b_name,
-                "mobile_number": str(db_cust.get("contact_number", "")),
-                "Mobile_Number": str(db_cust.get("contact_number", "")),
-                "email": db_cust.get("email", ""),
-                "address": db_cust.get("address", ""),
-                "city": db_cust.get("city", "Raipur"),
-                "City": db_cust.get("city", "Raipur"),
-                "customer_type": db_cust.get("customer_type", "Retail Customer"),
-                "Customer_Type": db_cust.get("customer_type", "Retail Customer"),
-                "registration_date": str(db_cust.get("registration_date", "2024-01-01")),
-                "customer_rating": float(db_cust.get("customer_rating", 4.5)),
-                "outstanding_amount": float(db_cust.get("outstanding_amount", 0.0)),
-            }
-    except Exception:
-        pass
-        if db_cust:
-            return {
-                "customer_id": db_cust.get("customer_id", c_id),
-                "Customer_ID": db_cust.get("customer_id", c_id),
-                "customer_name": db_cust.get("customer_name", "Customer"),
-                "Customer_Name": db_cust.get("customer_name", "Customer"),
-                "business_name": db_cust.get("business_name", ""),
-                "Business_Name": db_cust.get("business_name", ""),
-                "mobile_number": str(db_cust.get("contact_number", "")),
-                "Mobile_Number": str(db_cust.get("contact_number", "")),
-                "email": db_cust.get("email", ""),
-                "address": db_cust.get("address", ""),
-                "city": db_cust.get("city", "Raipur"),
-                "City": db_cust.get("city", "Raipur"),
-                "customer_type": db_cust.get("customer_type", "Retail Customer"),
-                "Customer_Type": db_cust.get("customer_type", "Retail Customer"),
-                "registration_date": str(db_cust.get("registration_date", "2024-01-01")),
-                "customer_rating": float(db_cust.get("customer_rating", 4.5)),
-                "outstanding_amount": float(db_cust.get("outstanding_amount", 0.0)),
+                "mobile_number": mob,
+                "Mobile_Number": mob,
+                "email": db_cust.get("email") or "",
+                "address": db_cust.get("address") or "",
+                "city": db_cust.get("city") or "Raipur",
+                "City": db_cust.get("city") or "Raipur",
+                "customer_type": db_cust.get("customer_type") or "Retail Customer",
+                "Customer_Type": db_cust.get("customer_type") or "Retail Customer",
+                "registration_date": str(db_cust.get("registration_date") or "2024-01-01"),
+                "customer_rating": float(db_cust.get("customer_rating") or 4.5),
+                "outstanding_amount": float(db_cust.get("outstanding_amount") or 0.0),
             }
     except Exception:
         pass
 
-    # 2. Read 05_customers_receivables.csv
+    # 2. Secondary Source: Staged 05_customers_receivables.csv
     from pathlib import Path
     cand_csvs = [
         Path("05_customers_receivables.csv"),
@@ -334,16 +308,18 @@ def _fetch_customer_profile_uncached(customer_id):
                         b_name = r.get("Business_Name", r.get("business_name", ""))
                         if not b_name and c_id.upper() in {"CUST001", "CUST_DEMO_01"}:
                             b_name = "Shivansh Electronics and Hardware"
-                        profile = {
+                        mob = str(r.get("Contact_Number", r.get("Mobile_Number", r.get("mobile_number", ""))))
+                        return {
                             "customer_id": c_id,
                             "Customer_ID": c_id,
                             "customer_name": c_name,
                             "Customer_Name": c_name,
                             "business_name": b_name,
                             "Business_Name": b_name,
-                            "mobile_number": str(r.get("Contact_Number", r.get("Mobile_Number", r.get("mobile_number", "9876543337")))),
-                            "Mobile_Number": str(r.get("Contact_Number", r.get("Mobile_Number", r.get("mobile_number", "9876543337")))),
+                            "mobile_number": mob,
+                            "Mobile_Number": mob,
                             "email": r.get("Email", r.get("email", "")),
+                            "address": r.get("Address", r.get("address", "")),
                             "city": r.get("City", r.get("city", "Raipur")),
                             "City": r.get("City", r.get("city", "Raipur")),
                             "customer_type": r.get("Customer_Type", r.get("customer_type", "Retail Customer")),
@@ -352,21 +328,12 @@ def _fetch_customer_profile_uncached(customer_id):
                             "customer_rating": float(r.get("Customer_Rating", r.get("customer_rating", 4.5))),
                             "outstanding_amount": float(r.get("Outstanding_Amount", r.get("outstanding_amount", 0.0))),
                         }
-                        return profile
             except Exception:
                 pass
 
-    # 2. Check raw_data in session state
-    raw_data = st.session_state.get("raw_data", pd.DataFrame())
-    if raw_data.empty:
-        try:
-            from utils.data_loader import refresh_application_data
-            refresh_application_data()
-            raw_data = st.session_state.get("raw_data", pd.DataFrame())
-        except Exception:
-            pass
-
-    if not raw_data.empty:
+    # 3. Tertiary Source: raw_data in session state
+    raw_data = st.session_state.get("raw_data", None)
+    if raw_data is not None and isinstance(raw_data, pd.DataFrame) and not raw_data.empty:
         cid_col = next((c for c in raw_data.columns if c.lower() in ["customer_id", "customerid"]), None)
         if cid_col:
             customer_rows = raw_data[raw_data[cid_col].astype(str).str.strip().isin(variants)]
@@ -383,66 +350,43 @@ def _fetch_customer_profile_uncached(customer_id):
                 b_name = row_dict.get("Business_Name", row_dict.get("business_name", ""))
                 if not b_name and c_id.upper() in {"CUST001", "CUST_DEMO_01"}:
                     b_name = "Shivansh Electronics and Hardware"
+                mob = str(row_dict.get("Contact_Number", row_dict.get("Mobile_Number", row_dict.get("mobile_number", ""))))
                 return {
                     "customer_id": c_id,
                     "Customer_ID": c_id,
                     "customer_name": c_name,
+                    "Customer_Name": c_name,
                     "business_name": b_name,
-                    "mobile_number": str(row_dict.get("Mobile_Number", row_dict.get("mobile_number", row_dict.get("Contact_Number", "9876543337")))),
+                    "Business_Name": b_name,
+                    "mobile_number": mob,
+                    "Mobile_Number": mob,
                     "email": row_dict.get("Email", row_dict.get("email", "")),
+                    "address": row_dict.get("Address", row_dict.get("address", "")),
                     "city": row_dict.get("City", row_dict.get("city", "Raipur")),
+                    "City": row_dict.get("City", row_dict.get("city", "Raipur")),
                     "customer_type": row_dict.get("Customer_Type", row_dict.get("customer_type", "Retail Customer")),
+                    "Customer_Type": row_dict.get("Customer_Type", row_dict.get("customer_type", "Retail Customer")),
                     "registration_date": str(row_dict.get("Registration_Date", row_dict.get("registration_date", "2024-01-01"))),
                     "customer_rating": float(row_dict.get("Customer_Rating", row_dict.get("customer_rating", 4.5))),
                     "outstanding_amount": float(row_dict.get("Outstanding_Amount", row_dict.get("outstanding_amount", 0.0))),
                 }
 
-    # 1b. Check centralized relational database
-    try:
-        from utils.database import get_customer_detail_from_db
-        db_cust = None
-        for v in variants:
-            db_cust = get_customer_detail_from_db(v)
-            if db_cust:
-                break
-        if db_cust:
-            c_name = db_cust.get("customer_name", "Customer")
-            if c_id.upper() in {"CUST001", "CUST01", "SHIVANSH"} and st.session_state.get("customer_name"):
-                c_name = st.session_state.get("customer_name", "Shivansh")
-            b_name = db_cust.get("business_name", "")
-            if not b_name and c_id.upper() in {"CUST001", "CUST_DEMO_01"}:
-                b_name = "Shivansh Electronics and Hardware"
-            return {
-                "customer_id": c_id,
-                "Customer_ID": c_id,
-                "customer_name": c_name,
-                "Customer_Name": c_name,
-                "business_name": b_name,
-                "Business_Name": b_name,
-                "mobile_number": str(db_cust.get("contact_number", "")),
-                "Mobile_Number": str(db_cust.get("contact_number", "")),
-                "email": db_cust.get("email", ""),
-                "address": db_cust.get("address", ""),
-                "city": db_cust.get("city", "Raipur"),
-                "City": db_cust.get("city", "Raipur"),
-                "customer_type": db_cust.get("customer_type", "Retail Customer"),
-                "Customer_Type": db_cust.get("customer_type", "Retail Customer"),
-                "registration_date": str(db_cust.get("registration_date", "2024-01-01")),
-                "customer_rating": float(db_cust.get("customer_rating", 4.5)),
-                "outstanding_amount": float(db_cust.get("outstanding_amount", 0.0)),
-            }
-    except Exception:
-        pass
-
     fallback_name = st.session_state.get("customer_name") if c_id.upper() in {"CUST001", "CUST01", "SHIVANSH"} else f"Customer {c_id}"
     return {
         "customer_id": c_id,
+        "Customer_ID": c_id,
         "customer_name": fallback_name or f"Customer {c_id}",
+        "Customer_Name": fallback_name or f"Customer {c_id}",
         "business_name": "Shivansh Electronics and Hardware" if c_id.upper() in {"CUST001", "CUST01", "SHIVANSH"} else "Retail Store Client",
-        "mobile_number": "9876543337",
-        "email": "customer@example.com",
+        "Business_Name": "Shivansh Electronics and Hardware" if c_id.upper() in {"CUST001", "CUST01", "SHIVANSH"} else "Retail Store Client",
+        "mobile_number": "",
+        "Mobile_Number": "",
+        "email": "",
+        "address": "",
         "city": "Raipur",
-        "customer_type": "Retailer",
+        "City": "Raipur",
+        "customer_type": "Retail Buyer",
+        "Customer_Type": "Retail Buyer",
         "registration_date": "2024-01-01",
         "customer_rating": 4.5,
         "outstanding_amount": 0.0,

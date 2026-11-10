@@ -275,11 +275,57 @@ def render_customer_sidebar():
                     box-shadow: none !important;
                 }}
 
+                /* Ensure all sidebar radio widgets are completely hidden - zero radio circles or indicators */
+                [data-testid="stSidebar"] [data-testid="stRadio"],
+                [data-testid="stSidebar"] div[data-testid="stRadio"] {{
+                    display: none !important;
+                    visibility: hidden !important;
+                    height: 0 !important;
+                    max-height: 0 !important;
+                    overflow: hidden !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    position: absolute !important;
+                }}
+
                 /* Footer logout button container */
                 .sidebar-footer-container {{
                     margin-top: 1.1rem;
                     padding-top: 0.75rem;
                     border-top: 1px solid rgba(41, 38, 34, 0.12);
+                }}
+
+                /* Distinct styling for logout button */
+                [data-testid="stSidebar"] div.stButton > button[key="cust_sidebar_logout_btn"],
+                .sidebar-footer-container + div.stButton > button,
+                [data-testid="stSidebar"] .sidebar-footer-container ~ div.stButton > button {{
+                    background-color: #FAF5EE !important;
+                    background: #FAF5EE !important;
+                    border: 1px solid #CBD5E1 !important;
+                    border-left: 1px solid #CBD5E1 !important;
+                    border-radius: 6px !important;
+                    color: #475569 !important;
+                    font-weight: 600 !important;
+                    justify-content: center !important;
+                    text-align: center !important;
+                }}
+                [data-testid="stSidebar"] div.stButton > button[key="cust_sidebar_logout_btn"]:hover,
+                .sidebar-footer-container + div.stButton > button:hover,
+                [data-testid="stSidebar"] .sidebar-footer-container ~ div.stButton > button:hover {{
+                    background-color: #F1F5F9 !important;
+                    background: #F1F5F9 !important;
+                    border-color: #94A3B8 !important;
+                    border-left: 1px solid #94A3B8 !important;
+                    color: #0F172A !important;
+                }}
+                [data-testid="stSidebar"] div.stButton > button[key="cust_sidebar_logout_btn"] p,
+                .sidebar-footer-container + div.stButton > button p,
+                [data-testid="stSidebar"] .sidebar-footer-container ~ div.stButton > button p {{
+                    text-align: center !important;
+                    color: #475569 !important;
+                    font-weight: 600 !important;
                 }}
             </style>
             <div class="bizmetrics-sidebar-brand">
@@ -341,14 +387,11 @@ def render_customer_sidebar():
             st.session_state["_last_synced_nav"] = section_name
 
         # Render vertical clickable navigation items matching Owner Dashboard sidebar exactly
-        st.markdown('<div class="cust-nav-list">', unsafe_allow_html=True)
         for item in CUSTOMER_NAV_ITEMS:
             display_title = friendly_names.get(item, item)
             localized_label = t(display_title, lang)
             is_active = (item == curr_sec)
-            active_class = "cust-nav-btn cust-nav-active" if is_active else "cust-nav-btn"
 
-            st.markdown(f'<div class="{active_class}">', unsafe_allow_html=True)
             st.button(
                 localized_label,
                 key=f"cust_nav_btn_{item.replace(' ', '_')}",
@@ -357,11 +400,8 @@ def render_customer_sidebar():
                 on_click=_handle_cust_nav_click,
                 args=(item,)
             )
-            st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
         # Hidden radio widget to maintain full compatibility with automated test suites
-        st.markdown('<div style="display: none !important; visibility: hidden !important; height: 0 !important; max-height: 0 !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important;">', unsafe_allow_html=True)
         def _on_customer_radio_change():
             sel = st.session_state.get("customer_nav_selection", CUSTOMER_NAV_ITEMS[0])
             st.session_state["customer_active_section"] = CUSTOMER_NAV_ALIASES.get(sel, sel)
@@ -371,16 +411,16 @@ def render_customer_sidebar():
             display_name = friendly_names.get(item, item)
             return t(display_name, lang)
 
+        radio_idx = None if "customer_nav_selection" in st.session_state else (CUSTOMER_NAV_ITEMS.index(curr_sec) if curr_sec in CUSTOMER_NAV_ITEMS else 0)
         st.radio(
             "CUSTOMER",
             CUSTOMER_NAV_ITEMS,
-            index=CUSTOMER_NAV_ITEMS.index(curr_sec) if curr_sec in CUSTOMER_NAV_ITEMS else 0,
+            index=radio_idx,
             format_func=_format_nav_label,
             key="customer_nav_selection",
             on_change=_on_customer_radio_change,
             label_visibility="collapsed"
         )
-        st.markdown('</div>', unsafe_allow_html=True)
 
         # Bottom Language & Logout
         st.markdown('<div class="sidebar-footer-container"></div>', unsafe_allow_html=True)

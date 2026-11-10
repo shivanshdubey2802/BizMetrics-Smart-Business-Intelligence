@@ -878,13 +878,17 @@ def init_database(db_path: Path | str | None = None) -> None:
                 (DEFAULT_OWNER_NAME.lower().replace(" ", ""), DEFAULT_OWNER_NAME, owner_hash, "Owner", DEFAULT_SHOP_ID),
             )
 
-        # Seed core operational records (customers, credentials, sales, receivables) if customers table is empty
-        try:
-            cur.execute("SELECT COUNT(*) FROM customers")
-            if cur.fetchone()[0] == 0:
-                _seed_core_business_data(cur)
-        except Exception as e:
-            print(f"Notice: core business data auto-seed: {e}")
+        # Seed core operational records (customers, credentials, sales, receivables) if default database is empty
+        if target == DB_PATH:
+            try:
+                cur.execute("SELECT COUNT(*) FROM customers")
+                c_cnt = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM sales_transactions")
+                s_cnt = cur.fetchone()[0]
+                if c_cnt == 0 or s_cnt == 0:
+                    _seed_core_business_data(cur)
+            except Exception as e:
+                print(f"Notice: core business data auto-seed: {e}")
 
         # Seed verified public Durg-Bhilai datasets if local_demographics table is empty
         try:
@@ -896,18 +900,19 @@ def init_database(db_path: Path | str | None = None) -> None:
 
     _INITIALIZED_DBS.add(target)
 
-    # Seed master business records if sales_transactions is empty and original CSVs are not present (cloud mode)
-    try:
-        orig_csv = APP_ROOT / "03_sales_transactions.csv"
-        if not orig_csv.is_file():
-            with get_connection(target) as chk_conn:
-                cnt = chk_conn.execute("SELECT COUNT(*) FROM sales_transactions").fetchone()[0]
-            if cnt == 0:
-                demo_csv = APP_ROOT / "data" / "demo_business_master_data.csv"
-                if demo_csv.is_file():
-                    import_master_df_to_database(pd.read_csv(demo_csv), db_path=target)
-    except Exception as e:
-        print(f"Notice: initial sales import: {e}")
+    # Guarantee core operational business data if sales_transactions is empty in cloud mode for default DB
+    if target == DB_PATH:
+        try:
+            orig_csv = APP_ROOT / "03_sales_transactions.csv"
+            if not orig_csv.is_file():
+                with get_connection(target) as chk_conn:
+                    cnt = chk_conn.execute("SELECT COUNT(*) FROM sales_transactions").fetchone()[0]
+                if cnt == 0:
+                    with get_connection(target) as seed_conn:
+                        _seed_core_business_data(seed_conn.cursor())
+                        seed_conn.commit()
+        except Exception as e:
+            print(f"Notice: initial sales import: {e}")
 
 
 def import_all_csvs(db_path: Path | str | None = None) -> dict[str, Any]:
@@ -1462,6 +1467,9 @@ def import_master_df_to_database(
                                 business_name = excluded.business_name,
                                 contact_number = excluded.contact_number,
                                 email = excluded.email,
+                                city = excluded.city,
+                                customer_type = excluded.customer_type,
+                                customer_rating = excluded.customer_rating,
                                 outstanding_amount = excluded.outstanding_amount
                             """,
                             (cid, shop_id, cname, bname, contact, email, city, ctype, reg_date, rating, out_amt),
