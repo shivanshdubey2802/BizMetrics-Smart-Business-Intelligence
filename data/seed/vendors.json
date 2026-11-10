@@ -1,0 +1,50 @@
+[
+  {
+    "vendor_id": "SUPP001",
+    "shop_id": "shivansh_electronics_hardware",
+    "vendor_name": "Omega Suppliers",
+    "material_type": "Hardware",
+    "total_ordered_amount": 300000.0,
+    "total_paid_amount": 260800.0,
+    "outstanding_balance": 39200.0,
+    "next_payment_date": "2026-09-15",
+    "credit_days_allowed": 30,
+    "created_at": "2026-11-10 05:45:36"
+  },
+  {
+    "vendor_id": "SUPP002",
+    "shop_id": "shivansh_electronics_hardware",
+    "vendor_name": "Supplier SUPP002",
+    "material_type": "Hardware & Electricals",
+    "total_ordered_amount": 0.0,
+    "total_paid_amount": 0.0,
+    "outstanding_balance": 0.0,
+    "next_payment_date": null,
+    "credit_days_allowed": 30,
+    "created_at": "2026-11-10 05:45:36"
+  },
+  {
+    "vendor_id": "SUPP003",
+    "shop_id": "shivansh_electronics_hardware",
+    "vendor_name": "Supplier SUPP003",
+    "material_type": "Hardware & Electricals",
+    "total_ordered_amount": 0.0,
+    "total_paid_amount": 0.0,
+    "outstanding_balance": 0.0,
+    "next_payment_date": null,
+    "credit_days_allowed": 30,
+    "created_at": "2026-11-10 05:45:36"
+  },
+  {
+    "vendor_id": "VEND_TEST_01",
+    "shop_id": "shivansh_electronics_hardware",
+    "vendor_name": "Durg Metal Traders",
+    "material_type": "Structural Steel",
+    "total_ordered_amount": 9000.0,
+    "total_paid_amount": 4500.0,
+    "outstanding_balance": 4500.0,
+    "next_payment_date": "",
+    "credit_days_allowed": 30,
+    "created_at": "2026-11-10 06:16:54"
+  }
+]

@@ -169,30 +169,19 @@ def render_customer_sidebar():
                 /* =========================================================================
                    CUSTOMER NAVIGATION: EXACT MATCH TO OWNER DASHBOARD SIDEBAR NAVIGATION
                    ========================================================================= */
-                .cust-nav-list {{
-                    display: flex !important;
-                    flex-direction: column !important;
-                    gap: 2px !important;
-                    width: 100% !important;
-                    margin: 0.2rem 0 0.5rem 0 !important;
-                }}
-
-                .cust-nav-btn {{
-                    width: 100% !important;
-                    margin: 1px 0 !important;
-                }}
-
-                .cust-nav-btn [data-testid="stButton"] {{
+                [data-testid="stSidebar"] div.stButton {{
                     width: 100% !important;
                     margin: 0 !important;
                     padding: 0 !important;
                 }}
 
-                /* Inactive navigation item: matches Owner Dashboard links */
-                .cust-nav-btn [data-testid="stButton"] button {{
+                /* Inactive navigation item (Secondary Button): matches Owner Dashboard links */
+                [data-testid="stSidebar"] div.stButton > button,
+                [data-testid="stSidebar"] div.stButton > button[kind="secondary"],
+                [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-secondary"] {{
                     width: 100% !important;
                     padding: 0.45rem 0.75rem !important;
-                    margin: 0 !important;
+                    margin: 1px 0 !important;
                     border-radius: 4px 8px 8px 4px !important;
                     background-color: transparent !important;
                     background: transparent !important;
@@ -212,15 +201,17 @@ def render_customer_sidebar():
                     outline: none !important;
                 }}
 
-                .cust-nav-btn [data-testid="stButton"] button:hover {{
+                [data-testid="stSidebar"] div.stButton > button:hover,
+                [data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover,
+                [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-secondary"]:hover {{
                     background-color: rgba(13, 148, 136, 0.08) !important;
                     background: rgba(13, 148, 136, 0.08) !important;
                     border-left: 4px solid rgba(13, 148, 136, 0.4) !important;
                 }}
 
-                .cust-nav-btn [data-testid="stButton"] button div[data-testid="stMarkdownContainer"],
-                .cust-nav-btn [data-testid="stButton"] button p,
-                .cust-nav-btn [data-testid="stButton"] button span {{
+                [data-testid="stSidebar"] div.stButton > button div[data-testid="stMarkdownContainer"],
+                [data-testid="stSidebar"] div.stButton > button p,
+                [data-testid="stSidebar"] div.stButton > button span {{
                     font-size: 0.92rem !important;
                     font-weight: 500 !important;
                     color: #2D3748 !important;
@@ -234,24 +225,41 @@ def render_customer_sidebar():
                     width: 100% !important;
                 }}
 
-                .cust-nav-btn [data-testid="stButton"] button:hover div[data-testid="stMarkdownContainer"],
-                .cust-nav-btn [data-testid="stButton"] button:hover p,
-                .cust-nav-btn [data-testid="stButton"] button:hover span {{
+                [data-testid="stSidebar"] div.stButton > button:hover div[data-testid="stMarkdownContainer"],
+                [data-testid="stSidebar"] div.stButton > button:hover p,
+                [data-testid="stSidebar"] div.stButton > button:hover span {{
                     color: #0F766E !important;
                 }}
 
-                /* Active navigation item: light teal background, teal left indicator */
+                /* Active navigation item (Primary Button): light teal background, teal left indicator */
+                [data-testid="stSidebar"] div.stButton > button[kind="primary"],
+                [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"],
                 .cust-nav-btn.cust-nav-active [data-testid="stButton"] button {{
+                    width: 100% !important;
+                    padding: 0.45rem 0.75rem !important;
+                    margin: 1px 0 !important;
                     background-color: #E6F4F1 !important;
                     background: #E6F4F1 !important;
+                    border: none !important;
                     border-left: 4px solid #0D9488 !important;
                     border-top: 1px solid rgba(13, 148, 136, 0.15) !important;
                     border-right: 1px solid rgba(13, 148, 136, 0.15) !important;
                     border-bottom: 1px solid rgba(13, 148, 136, 0.15) !important;
-                    border-radius: 2px 8px 8px 2px !important;
+                    border-radius: 4px 8px 8px 4px !important;
                     box-shadow: 0 1px 3px rgba(13, 148, 136, 0.12) !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: flex-start !important;
+                    text-align: left !important;
+                    min-height: 2.2rem !important;
                 }}
 
+                [data-testid="stSidebar"] div.stButton > button[kind="primary"] div[data-testid="stMarkdownContainer"],
+                [data-testid="stSidebar"] div.stButton > button[kind="primary"] p,
+                [data-testid="stSidebar"] div.stButton > button[kind="primary"] span,
+                [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"] div[data-testid="stMarkdownContainer"],
+                [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"] p,
+                [data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"] span,
                 .cust-nav-btn.cust-nav-active [data-testid="stButton"] button div[data-testid="stMarkdownContainer"],
                 .cust-nav-btn.cust-nav-active [data-testid="stButton"] button p,
                 .cust-nav-btn.cust-nav-active [data-testid="stButton"] button span {{
@@ -260,18 +268,11 @@ def render_customer_sidebar():
                 }}
 
                 /* Focus state reset to eliminate blue halo */
-                .cust-nav-btn [data-testid="stButton"] button:focus,
-                .cust-nav-btn [data-testid="stButton"] button:focus:not(:focus-visible),
-                .cust-nav-btn [data-testid="stButton"] button:active {{
+                [data-testid="stSidebar"] div.stButton > button:focus,
+                [data-testid="stSidebar"] div.stButton > button:focus:not(:focus-visible),
+                [data-testid="stSidebar"] div.stButton > button:active {{
                     outline: none !important;
                     box-shadow: none !important;
-                }}
-
-                .cust-nav-btn.cust-nav-active [data-testid="stButton"] button:focus,
-                .cust-nav-btn.cust-nav-active [data-testid="stButton"] button:focus:not(:focus-visible),
-                .cust-nav-btn.cust-nav-active [data-testid="stButton"] button:active {{
-                    outline: none !important;
-                    box-shadow: 0 1px 3px rgba(13, 148, 136, 0.12) !important;
                 }}
 
                 /* Footer logout button container */
@@ -352,6 +353,7 @@ def render_customer_sidebar():
                 localized_label,
                 key=f"cust_nav_btn_{item.replace(' ', '_')}",
                 use_container_width=True,
+                type="primary" if is_active else "secondary",
                 on_click=_handle_cust_nav_click,
                 args=(item,)
             )

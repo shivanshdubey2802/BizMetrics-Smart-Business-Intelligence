@@ -20,7 +20,7 @@ secrets.toml
 *.sqlite
 *.sqlite3
 *.db.bak
-bizmetrics.db
+!bizmetrics.db
 bizmetrics_auth.db
 
 # 3. Python Bytecode, Caches & Distribution

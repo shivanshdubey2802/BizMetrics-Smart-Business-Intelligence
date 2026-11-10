@@ -878,6 +878,14 @@ def init_database(db_path: Path | str | None = None) -> None:
                 (DEFAULT_OWNER_NAME.lower().replace(" ", ""), DEFAULT_OWNER_NAME, owner_hash, "Owner", DEFAULT_SHOP_ID),
             )
 
+        # Seed core operational records (customers, credentials, sales, receivables) if customers table is empty
+        try:
+            cur.execute("SELECT COUNT(*) FROM customers")
+            if cur.fetchone()[0] == 0:
+                _seed_core_business_data(cur)
+        except Exception as e:
+            print(f"Notice: core business data auto-seed: {e}")
+
         # Seed verified public Durg-Bhilai datasets if local_demographics table is empty
         try:
             cur.execute("SELECT COUNT(*) FROM local_demographics")
@@ -2192,6 +2200,402 @@ def update_customer_profile(customer_id: str, updates: dict, shop_id: str = DEFA
     return True
 
 
+def get_customer_master_table_df(shop_id: str = DEFAULT_SHOP_ID) -> pd.DataFrame:
+    """
+    Fetch comprehensive, live aggregated customer records joined with sales and receivables.
+    Returns DataFrame containing:
+    - customer_id (Customer ID)
+    - customer_name (Customer Name)
+    - contact_number (Mobile Number)
+    - email (Email)
+    - city (City)
+    - customer_type (Customer Type)
+    - total_purchases (Total Purchases, float)
+    - total_paid (Total Paid, float)
+    - outstanding_amount (Outstanding Amount, float)
+    - last_purchase_date (Last Purchase Date, YYYY-MM-DD)
+    - customer_status ('Active', 'At Risk', 'New', 'Inactive')
+    - total_orders (Total verified order count)
+    - business_name (Business Name)
+    - address (Physical address)
+    - customer_rating (Rating score)
+    - days_since_last_order (int)
+    """
+    init_database()
+    sql = """
+    WITH sales_agg AS (
+        SELECT 
+            customer_id,
+            COUNT(sale_id) as total_orders,
+            COALESCE(SUM(total_amount), 0.0) as total_purchases,
+            COALESCE(SUM(CASE 
+                WHEN LOWER(payment_status) = 'completed' THEN total_amount 
+                ELSE total_amount - credit_amount 
+            END), 0.0) as total_paid,
+            MAX(date) as last_purchase_date
+        FROM sales_transactions
+        GROUP BY customer_id
+    ),
+    rec_agg AS (
+        SELECT 
+            customer_id,
+            COALESCE(SUM(amount), 0.0) as total_receivable_due
+        FROM receivables
+        WHERE LOWER(status) NOT IN ('settled', 'paid')
+        GROUP BY customer_id
+    )
+    SELECT 
+        c.customer_id,
+        c.customer_name,
+        c.business_name,
+        COALESCE(c.contact_number, '') as contact_number,
+        COALESCE(c.email, '') as email,
+        COALESCE(c.city, 'Unknown') as city,
+        COALESCE(c.customer_type, 'Retail Customer') as customer_type,
+        COALESCE(c.registration_date, '') as registration_date,
+        COALESCE(s.total_orders, 0) as total_orders,
+        ROUND(COALESCE(s.total_purchases, 0.0), 2) as total_purchases,
+        ROUND(COALESCE(s.total_paid, 0.0), 2) as total_paid,
+        ROUND(CASE 
+            WHEN COALESCE(r.total_receivable_due, 0.0) > 0 THEN r.total_receivable_due
+            ELSE COALESCE(c.outstanding_amount, 0.0)
+        END, 2) as outstanding_amount,
+        COALESCE(s.last_purchase_date, c.registration_date, '') as last_purchase_date,
+        COALESCE(c.address, '') as address,
+        COALESCE(c.customer_rating, 4.5) as customer_rating
+    FROM customers c
+    LEFT JOIN sales_agg s ON c.customer_id = s.customer_id
+    LEFT JOIN rec_agg r ON c.customer_id = r.customer_id
+    WHERE c.shop_id = ? OR ? = ''
+    ORDER BY c.customer_id ASC
+    """
+    df = query_df(sql, (shop_id, shop_id))
+    if df.empty:
+        df = query_df(sql.replace("WHERE c.shop_id = ? OR ? = ''", ""))
+        if df.empty:
+            return pd.DataFrame(columns=[
+                "customer_id", "customer_name", "business_name", "contact_number",
+                "email", "city", "customer_type", "registration_date", "total_orders",
+                "total_purchases", "total_paid", "outstanding_amount", "last_purchase_date",
+                "address", "customer_rating", "days_since_last_order", "customer_status"
+            ])
+
+    today = pd.Timestamp.today().normalize()
+    last_dates = pd.to_datetime(df['last_purchase_date'], errors='coerce')
+    days_since = (today - last_dates).dt.days.fillna(999).clip(lower=0)
+    df['days_since_last_order'] = days_since.astype(int)
+
+    reg_dates = pd.to_datetime(df['registration_date'], errors='coerce')
+    days_since_reg = (today - reg_dates).dt.days.fillna(999).clip(lower=0)
+    df['days_since_registration'] = days_since_reg.astype(int)
+
+    def _determine_status(row):
+        orders = row['total_orders']
+        days = row['days_since_last_order']
+        reg_days = row['days_since_registration']
+        dues = row['outstanding_amount']
+        if orders == 0 or (reg_days <= 240 and orders <= 2):
+            return "New"
+        elif days <= 90:
+            return "Active"
+        elif days <= 180:
+            return "At Risk" if dues > 0 else "Active"
+        elif days <= 365:
+            return "At Risk"
+        else:
+            return "Inactive"
+
+    df['customer_status'] = df.apply(_determine_status, axis=1)
+    return df
+
+
+def get_customer_kpi_summary(shop_id: str = DEFAULT_SHOP_ID) -> dict[str, Any]:
+    """
+    Compute live database-driven customer metrics:
+    - Total Customers
+    - Active Customers
+    - New Customers
+    - Repeat Customers
+    - Outstanding Customer Dues
+    - Total Customer Revenue
+    """
+    df = get_customer_master_table_df(shop_id=shop_id)
+    if df.empty:
+        return {
+            "total_customers": 0,
+            "active_customers": 0,
+            "new_customers": 0,
+            "repeat_customers": 0,
+            "repeat_pct": 0.0,
+            "outstanding_dues": 0.0,
+            "total_revenue": 0.0,
+            "avg_aov": 0.0,
+        }
+
+    total_customers = len(df)
+    active_customers = int((df["days_since_last_order"] <= 90).sum())
+    new_customers = int((df["days_since_registration"] <= 240).sum())
+    repeat_customers = int((df["total_orders"] > 1).sum())
+    repeat_pct = round((repeat_customers / max(1, total_customers)) * 100, 1)
+    outstanding_dues = round(float(df["outstanding_amount"].sum()), 2)
+    total_revenue = round(float(df["total_purchases"].sum()), 2)
+    total_orders_sum = int(df["total_orders"].sum())
+    avg_aov = round(total_revenue / max(1, total_orders_sum), 2)
+
+    return {
+        "total_customers": total_customers,
+        "active_customers": active_customers,
+        "new_customers": new_customers,
+        "repeat_customers": repeat_customers,
+        "repeat_pct": repeat_pct,
+        "outstanding_dues": outstanding_dues,
+        "total_revenue": total_revenue,
+        "avg_aov": avg_aov,
+    }
+
+
+def add_customer_to_db(
+    customer_name: str,
+    customer_id: str | None = None,
+    business_name: str = "",
+    contact_number: str = "",
+    email: str = "",
+    city: str = "Raipur",
+    customer_type: str = "Retail Customer",
+    address: str = "",
+    outstanding_amount: float = 0.0,
+    shop_id: str = DEFAULT_SHOP_ID,
+) -> tuple[bool, str, str]:
+    """
+    Add a new customer to the database with validation against duplicate ID and phone number.
+    Returns: (success: bool, message: str, customer_id: str)
+    """
+    init_database()
+    c_name = str(customer_name).strip()
+    if not c_name:
+        return False, "Customer Name is required.", ""
+
+    cid = str(customer_id).strip().upper() if customer_id else ""
+    with get_db_cursor(commit=False) as cur:
+        # Auto-generate customer ID if not supplied
+        if not cid:
+            rows = cur.execute("SELECT customer_id FROM customers").fetchall()
+            cids = [r[0] for r in rows if r[0]]
+            nums = [int("".join(filter(str.isdigit, x))) for x in cids if any(c.isdigit() for c in x)]
+            next_num = max(nums) + 1 if nums else 1
+            cid = f"CUST{next_num:03d}"
+
+        # 1. Validate duplicate Customer ID
+        cur.execute("SELECT customer_id, customer_name FROM customers WHERE customer_id = ?", (cid,))
+        dup_id = cur.fetchone()
+        if dup_id:
+            return False, f"Customer ID '{cid}' is already in use by {dup_id[1]}.", cid
+
+        # 2. Validate duplicate Mobile Number
+        c_mob = str(contact_number).strip()
+        if c_mob:
+            clean_digits = "".join(filter(str.isdigit, c_mob))
+            if len(clean_digits) >= 10:
+                lookup_mob = clean_digits[-10:]
+                cur.execute(
+                    "SELECT customer_id, customer_name FROM customers WHERE contact_number LIKE ?",
+                    (f"%{lookup_mob}",)
+                )
+                dup_mob = cur.fetchone()
+                if dup_mob:
+                    return False, f"Mobile number '{c_mob}' is already registered to customer {dup_mob[0]} ({dup_mob[1]}).", cid
+
+    from datetime import date
+    reg_date = date.today().strftime("%Y-%m-%d")
+
+    # Insert customer record
+    sql = """
+    INSERT INTO customers (
+        customer_id, shop_id, customer_name, business_name, contact_number,
+        email, city, customer_type, registration_date, customer_rating,
+        outstanding_amount, address
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 5.0, ?, ?)
+    """
+    with get_db_cursor(commit=True) as cur:
+        cur.execute(sql, (
+            cid, shop_id, c_name, business_name.strip() or f"{c_name}'s Store",
+            c_mob, email.strip(), city.strip() or "Raipur", customer_type.strip() or "Retail Customer",
+            reg_date, float(outstanding_amount or 0.0), address.strip()
+        ))
+
+        # Auto-create customer credentials so new customer can login to Digital Portal immediately
+        import hashlib
+        def _hash_id(id_str):
+            return hashlib.sha256(f"BIZMETRICS_SALT_{str(id_str).strip().upper()}".encode()).hexdigest()
+        pwd_hash = _hash_id(cid)
+        cur.execute(
+            """
+            INSERT INTO customer_credentials (shop_id, customer_id, customer_name, password_hash)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(shop_id, customer_id) DO UPDATE SET
+                customer_name = excluded.customer_name,
+                password_hash = excluded.password_hash
+            """,
+            (shop_id, cid, c_name, pwd_hash)
+        )
+
+    clear_db_caches()
+    try:
+        from utils.audit_logger import log_audit_event
+        log_audit_event("Owner", "CUSTOMER", "CREATE", cid, f"Added new customer {c_name} ({cid})", shop_id=shop_id)
+    except Exception:
+        pass
+
+    return True, f"Successfully created customer account {cid} for '{c_name}'.", cid
+
+
+def edit_customer_in_db(
+    customer_id: str,
+    customer_name: str,
+    business_name: str = "",
+    contact_number: str = "",
+    email: str = "",
+    city: str = "",
+    customer_type: str = "",
+    address: str = "",
+    outstanding_amount: float = 0.0,
+    shop_id: str = DEFAULT_SHOP_ID,
+) -> tuple[bool, str]:
+    """
+    Update customer details with duplicate mobile validation across other customers.
+    Returns: (success: bool, message: str)
+    """
+    init_database()
+    cid = str(customer_id).strip()
+    c_name = str(customer_name).strip()
+    if not c_name:
+        return False, "Customer Name is required."
+
+    c_mob = str(contact_number).strip()
+    with get_db_cursor(commit=False) as cur:
+        cur.execute("SELECT customer_id FROM customers WHERE customer_id = ?", (cid,))
+        if not cur.fetchone():
+            return False, f"Customer {cid} does not exist in database."
+
+        if c_mob:
+            clean_digits = "".join(filter(str.isdigit, c_mob))
+            if len(clean_digits) >= 10:
+                lookup_mob = clean_digits[-10:]
+                cur.execute(
+                    "SELECT customer_id, customer_name FROM customers WHERE contact_number LIKE ? AND customer_id != ?",
+                    (f"%{lookup_mob}", cid)
+                )
+                dup_mob = cur.fetchone()
+                if dup_mob:
+                    return False, f"Mobile number '{c_mob}' is already registered to another customer: {dup_mob[0]} ({dup_mob[1]})."
+
+    sql = """
+    UPDATE customers SET
+        customer_name = ?,
+        business_name = ?,
+        contact_number = ?,
+        email = ?,
+        city = ?,
+        customer_type = ?,
+        address = ?,
+        outstanding_amount = ?
+    WHERE customer_id = ?
+    """
+    with get_db_cursor(commit=True) as cur:
+        cur.execute(sql, (
+            c_name, business_name.strip(), c_mob, email.strip(),
+            city.strip(), customer_type.strip(), address.strip(),
+            float(outstanding_amount or 0.0), cid
+        ))
+        cur.execute(
+            "UPDATE customer_credentials SET customer_name = ? WHERE customer_id = ?",
+            (c_name, cid)
+        )
+
+    clear_db_caches()
+    try:
+        from customer_qr_bills import clear_customer_profile_cache
+        clear_customer_profile_cache(cid)
+    except Exception:
+        pass
+    try:
+        from utils.audit_logger import log_audit_event
+        log_audit_event("Owner", "CUSTOMER", "UPDATE", cid, f"Updated customer {c_name} ({cid}) details", shop_id=shop_id)
+    except Exception:
+        pass
+
+    return True, f"Customer {cid} ('{c_name}') updated successfully."
+
+
+def delete_customer_from_db(
+    customer_id: str,
+    force: bool = False,
+    shop_id: str = DEFAULT_SHOP_ID,
+) -> tuple[bool, str, dict]:
+    """
+    Delete customer with relationship checks.
+    If force=False and sales_transactions or open receivables exist, deletion is rejected with audit details.
+    If force=True, gracefully cascades and removes related customer records.
+    Returns: (success: bool, message: str, details: dict)
+    """
+    init_database()
+    cid = str(customer_id).strip()
+
+    with get_db_cursor(commit=False) as cur:
+        cur.execute("SELECT customer_name FROM customers WHERE customer_id = ?", (cid,))
+        row = cur.fetchone()
+        if not row:
+            return False, f"Customer {cid} not found in database.", {}
+        c_name = row[0]
+
+        cur.execute("SELECT COUNT(*) FROM sales_transactions WHERE customer_id = ?", (cid,))
+        sales_count = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM receivables WHERE customer_id = ? AND LOWER(status) NOT IN ('settled', 'paid')", (cid,))
+        open_rec_count = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM customer_support_tickets WHERE customer_id = ?", (cid,))
+        ticket_count = cur.fetchone()[0]
+
+    details = {
+        "customer_id": cid,
+        "customer_name": c_name,
+        "sales_count": sales_count,
+        "open_receivables": open_rec_count,
+        "support_tickets": ticket_count,
+    }
+
+    if (sales_count > 0 or open_rec_count > 0) and not force:
+        msg = (
+            f"Cannot delete customer {cid} ({c_name}): Account has {sales_count} sales transactions "
+            f"and {open_rec_count} unpaid ledger receivables. Please confirm force-delete to proceed."
+        )
+        return False, msg, details
+
+    # Execute cascade deletion within a single atomic transaction
+    with get_db_cursor(commit=True) as cur:
+        cur.execute("DELETE FROM customer_credentials WHERE customer_id = ?", (cid,))
+        cur.execute("DELETE FROM customer_notifications WHERE customer_id = ?", (cid,))
+        cur.execute("DELETE FROM customer_support_tickets WHERE customer_id = ?", (cid,))
+        cur.execute("DELETE FROM receivables WHERE customer_id = ?", (cid,))
+        cur.execute("DELETE FROM sales_transactions WHERE customer_id = ?", (cid,))
+        cur.execute("DELETE FROM customers WHERE customer_id = ?", (cid,))
+
+    clear_db_caches()
+    try:
+        from customer_qr_bills import clear_customer_profile_cache
+        clear_customer_profile_cache(cid)
+    except Exception:
+        pass
+    try:
+        from utils.audit_logger import log_audit_event
+        log_audit_event("Owner", "CUSTOMER", "DELETE", cid, f"Deleted customer {c_name} ({cid}) with {sales_count} historical sales", shop_id=shop_id)
+    except Exception:
+        pass
+
+    return True, f"Customer {cid} ({c_name}) and associated historical records deleted successfully.", details
+
+
 def get_customer_support_tickets(customer_id: str, shop_id: str = DEFAULT_SHOP_ID) -> list[dict]:
     """Retrieve all support requests filed by this customer."""
     init_database()
@@ -2389,6 +2793,137 @@ def get_dataset_sources_df() -> pd.DataFrame:
     init_database()
     sql = "SELECT * FROM dataset_sources ORDER BY dataset_name"
     return query_df(sql)
+
+
+def _seed_core_business_data(cur: sqlite3.Cursor) -> dict:
+    """Internal helper to seed authentic business data (vendors, products, customers, credentials, sales, receivables) from data/seed JSON files or CSVs."""
+    seed_dir = Path(__file__).resolve().parent.parent / "data" / "seed"
+    stats = {"vendors": 0, "customers": 0, "sales": 0, "receivables": 0, "products": 0, "credentials": 0}
+
+    # 0. Vendors (required for products supplier_id foreign key)
+    vend_file = seed_dir / "vendors.json"
+    if vend_file.exists():
+        try:
+            with open(vend_file, "r", encoding="utf-8") as f:
+                vends = json.load(f)
+            for v in vends:
+                cur.execute("""
+                    INSERT OR IGNORE INTO vendors (
+                        vendor_id, shop_id, vendor_name, material_type,
+                        total_ordered_amount, total_paid_amount, outstanding_balance, credit_days_allowed
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    v.get("vendor_id"), v.get("shop_id", DEFAULT_SHOP_ID), v.get("vendor_name"),
+                    v.get("material_type", "Hardware"), float(v.get("total_ordered_amount") or 0.0),
+                    float(v.get("total_paid_amount") or 0.0), float(v.get("outstanding_balance") or 0.0),
+                    int(v.get("credit_days_allowed") or 30)
+                ))
+                stats["vendors"] += 1
+        except Exception as e:
+            print(f"Notice: vendors seed: {e}")
+
+    # 1. Products
+    prod_file = seed_dir / "products.json"
+    if prod_file.exists():
+        try:
+            with open(prod_file, "r", encoding="utf-8") as f:
+                prods = json.load(f)
+            for p in prods:
+                cur.execute("""
+                    INSERT OR IGNORE INTO products (
+                        product_id, shop_id, product_name, category, sector, unit,
+                        purchase_price, selling_price, description, supplier_id, lead_time_days
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    p.get("product_id"), p.get("shop_id", DEFAULT_SHOP_ID), p.get("product_name"),
+                    p.get("category"), p.get("sector", "Hardware & Electricals"), p.get("unit", "Piece"),
+                    float(p.get("purchase_price") or 0.0), float(p.get("selling_price") or 0.0),
+                    p.get("description", ""), p.get("supplier_id", "SUP001"), int(p.get("lead_time_days") or 5)
+                ))
+                stats["products"] += 1
+        except Exception as e:
+            print(f"Notice: products seed: {e}")
+
+    # 2. Customers
+    cust_file = seed_dir / "customers.json"
+    if cust_file.exists():
+        try:
+            with open(cust_file, "r", encoding="utf-8") as f:
+                custs = json.load(f)
+            for c in custs:
+                cur.execute("""
+                    INSERT OR IGNORE INTO customers (
+                        customer_id, shop_id, customer_name, business_name, contact_number,
+                        email, city, customer_type, registration_date, customer_rating, outstanding_amount, address
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    c.get("customer_id"), c.get("shop_id", DEFAULT_SHOP_ID), c.get("customer_name"), c.get("business_name"),
+                    c.get("contact_number"), c.get("email"), c.get("city"), c.get("customer_type"),
+                    c.get("registration_date"), c.get("customer_rating"), c.get("outstanding_amount"), c.get("address")
+                ))
+                stats["customers"] += 1
+        except Exception as e:
+            print(f"Notice: customers seed: {e}")
+
+    # 3. Customer Credentials
+    cred_file = seed_dir / "customer_credentials.json"
+    if cred_file.exists():
+        try:
+            with open(cred_file, "r", encoding="utf-8") as f:
+                creds = json.load(f)
+            for cr in creds:
+                cur.execute("""
+                    INSERT OR IGNORE INTO customer_credentials (shop_id, customer_id, customer_name, password_hash)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    cr.get("shop_id", DEFAULT_SHOP_ID), cr.get("customer_id"), cr.get("customer_name"), cr.get("password_hash")
+                ))
+                stats["credentials"] += 1
+        except Exception as e:
+            print(f"Notice: customer credentials seed: {e}")
+
+    # 4. Sales Transactions
+    sales_file = seed_dir / "sales_transactions.json"
+    if sales_file.exists():
+        try:
+            with open(sales_file, "r", encoding="utf-8") as f:
+                sales = json.load(f)
+            for s in sales:
+                cur.execute("""
+                    INSERT OR IGNORE INTO sales_transactions (
+                        sale_id, shop_id, date, customer_id, product_id, quantity,
+                        selling_price, discount_percent, total_amount, payment_mode, payment_status, credit_amount, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    s.get("sale_id"), s.get("shop_id", DEFAULT_SHOP_ID), s.get("date"), s.get("customer_id"),
+                    s.get("product_id"), s.get("quantity"), s.get("selling_price"), s.get("discount_percent"),
+                    s.get("total_amount"), s.get("payment_mode"), s.get("payment_status"), s.get("credit_amount"), s.get("notes")
+                ))
+                stats["sales"] += 1
+        except Exception as e:
+            print(f"Notice: sales seed: {e}")
+
+    # 5. Receivables
+    rec_file = seed_dir / "receivables.json"
+    if rec_file.exists():
+        try:
+            with open(rec_file, "r", encoding="utf-8") as f:
+                recs = json.load(f)
+            for r in recs:
+                cur.execute("""
+                    INSERT OR IGNORE INTO receivables (
+                        receivable_id, shop_id, invoice_id, customer_id, amount, due_date,
+                        days_overdue, status, collection_priority, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    r.get("receivable_id"), r.get("shop_id", DEFAULT_SHOP_ID), r.get("invoice_id"), r.get("customer_id"),
+                    r.get("amount"), r.get("due_date"), r.get("days_overdue"), r.get("status"), r.get("collection_priority"), r.get("notes")
+                ))
+                stats["receivables"] += 1
+        except Exception as e:
+            print(f"Notice: receivables seed: {e}")
+
+    return stats
 
 
 def _seed_public_durg_bhilai_data(cur: sqlite3.Cursor) -> dict:
