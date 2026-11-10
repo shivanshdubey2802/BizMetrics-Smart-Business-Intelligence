@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from utils.translations import t, normalize_lang, get_current_language, set_current_language
 
 def render_html(html_str: str):
@@ -11,6 +12,31 @@ def render_html(html_str: str):
 
 def render_header(title_key, description_key, badge_type=None):
     lang = get_current_language()
+    
+    # Auto-scroll viewport to top upon page navigation
+    components.html(
+        """
+        <script>
+        (function() {
+            try {
+                if (window.parent) {
+                    window.parent.scrollTo(0, 0);
+                    const doc = window.parent.document;
+                    const mainEl = doc.querySelector('section.main') || 
+                                   doc.querySelector('[data-testid="stMain"]') ||
+                                   doc.querySelector('[data-testid="stMainBlockContainer"]') ||
+                                   doc.documentElement;
+                    if (mainEl && mainEl.scrollTop > 0) {
+                        mainEl.scrollTop = 0;
+                    }
+                }
+                window.scrollTo(0, 0);
+            } catch(e) {}
+        })();
+        </script>
+        """,
+        height=0,
+    )
     
     # Breadcrumb and Return to Dashboard navigation for all non-dashboard pages
     active_stem = st.session_state.get("active_sidebar_page", "")

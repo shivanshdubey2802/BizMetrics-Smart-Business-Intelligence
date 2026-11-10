@@ -15,7 +15,10 @@ Features:
 """
 
 from __future__ import annotations
+import base64
 import json
+import os
+from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 from typing import Any, Optional
@@ -25,6 +28,46 @@ try:
 except Exception:
     def t(key, lang=None): return str(key) if key is not None else ""
     def get_current_language(): return "English"
+
+# Mapping of product IDs to real 3D model assets in assets/3d_models/
+ASSET_MODEL_MAP: dict[str, str] = {
+    "PROD001": "flanged_steel_pipe.glb",
+    "PROD002": "flanged_steel_pipe.glb",
+    "PROD003": "submersible_pump_motor.glb",
+    "PROD004": "flanged_steel_pipe.glb",
+    "PROD007": "flanged_steel_pipe.glb",
+    "PROD008": "industrial_flange.stl",
+    "PROD010": "flanged_steel_pipe.glb",
+    "PROD011": "industrial_valve.glb",
+}
+
+def resolve_3d_asset(product_id_or_filename: str) -> tuple[Optional[bytes], str]:
+    """
+    Locates 3D model asset from assets/3d_models/ across local repo and Streamlit Cloud paths.
+    Returns (model_bytes, format_extension).
+    """
+    clean_id = str(product_id_or_filename).upper().strip()
+    filename = ASSET_MODEL_MAP.get(clean_id, product_id_or_filename)
+    if not any(filename.lower().endswith(ext) for ext in [".glb", ".gltf", ".stl", ".obj"]):
+        filename = f"{filename}.glb"
+
+    candidate_dirs = [
+        Path(__file__).resolve().parent.parent / "assets" / "3d_models",
+        Path.cwd() / "assets" / "3d_models",
+        Path("/mount/src/bizmetrics-smart-business-intelligence/assets/3d_models"),
+        Path("assets/3d_models"),
+    ]
+
+    for d in candidate_dirs:
+        candidate_file = d / filename
+        try:
+            if candidate_file.is_file():
+                ext = candidate_file.suffix.lstrip(".").lower()
+                with open(candidate_file, "rb") as f:
+                    return f.read(), ext
+        except Exception:
+            continue
+    return None, "glb"
 
 # Technical engineering specifications for BizMetrics SKUs
 PRODUCT_3D_SPECS: dict[str, dict[str, Any]] = {
@@ -205,6 +248,8 @@ def generate_3d_html(
     specs: dict[str, Any],
     lang: str = "English",
     height: int = 560,
+    model_b64: Optional[str] = None,
+    model_format: str = "glb",
 ) -> str:
     """
     Generates a self-contained, responsive WebGL Three.js 3D viewer HTML document.
@@ -314,14 +359,24 @@ def generate_3d_html(
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: none; z-index: 1;
   }}
+  @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
 </style>
-<!-- Load Three.js and OrbitControls with robust failover -->
+<!-- Load Three.js, OrbitControls, and specialized CAD loaders with robust failover -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
 </head>
 <body>
 
 <div id="viewer-container">
+  <!-- Interactive Loading Spinner Overlay -->
+  <div id="loading-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; transition: opacity 0.35s ease;">
+    <div style="width: 38px; height: 38px; border: 3px solid rgba(255,255,255,0.15); border-top: 3px solid #0D9488; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+    <div style="color: #E2E8F0; font-size: 12px; font-weight: 600; margin-top: 12px; letter-spacing: 0.3px;">Loading 3D Digital Twin...</div>
+  </div>
+
   <!-- Dynamic Three.js WebGL Viewport -->
   <canvas id="three-canvas"></canvas>
   <canvas id="fallback-canvas"></canvas>
@@ -385,6 +440,8 @@ const MODEL_TYPE = "{model_type}";
 const BASE_COLOR_HEX = "{default_hex}";
 const COMPONENTS = {components_json};
 const SPECS = {specs_json};
+const MODEL_B64 = "{model_b64 or ''}";
+const MODEL_FORMAT = "{model_format or 'glb'}";
 
 let scene, camera, renderer, controls;
 let productGroup, partMeshes = [];
@@ -472,10 +529,15 @@ function init3D() {{
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // 6. Build Procedural 3D Model
+  // 6. Build 3D Model (Loads real CAD asset / uploaded file if provided, else procedural)
   productGroup = new THREE.Group();
   scene.add(productGroup);
-  buildProceduralProduct(MODEL_TYPE);
+  if (MODEL_B64 && MODEL_B64.length > 20) {{
+    loadModelFromBase64(MODEL_B64, MODEL_FORMAT);
+  }} else {{
+    buildProceduralProduct(MODEL_TYPE);
+    hideLoadingOverlay();
+  }}
 
   // Window resize handler
   window.addEventListener('resize', onWindowResize, false);
@@ -856,8 +918,112 @@ function animate() {{
   if (renderer && scene && camera) renderer.render(scene, camera);
 }}
 
+// Loading and Base64 CAD Model Parsers
+function hideLoadingOverlay() {{
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {{
+    overlay.style.opacity = '0';
+    setTimeout(function() {{ overlay.style.display = 'none'; }}, 380);
+  }}
+}}
+
+function base64ToArrayBuffer(base64) {{
+  const binary_string = window.atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {{
+    bytes[i] = binary_string.charCodeAt(i);
+  }}
+  return bytes.buffer;
+}}
+
+function centerAndFitObject(obj) {{
+  const box = new THREE.Box3().setFromObject(obj);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (maxDim > 0) {{
+    const targetDim = 2.8;
+    const scale = targetDim / maxDim;
+    obj.scale.set(scale, scale, scale);
+    obj.position.sub(center.clone().multiplyScalar(scale));
+    obj.position.y += 1.4;
+  }}
+}}
+
+function loadModelFromBase64(b64, format) {{
+  try {{
+    const fmt = (format || 'glb').toLowerCase();
+    if (fmt === 'glb' || fmt === 'gltf') {{
+      if (typeof THREE.GLTFLoader !== 'undefined') {{
+        const loader = new THREE.GLTFLoader();
+        const buffer = base64ToArrayBuffer(b64);
+        loader.parse(buffer, '', function(gltf) {{
+          partMeshes = [];
+          gltf.scene.traverse(function(child) {{
+            if (child.isMesh) {{
+              child.castShadow = true;
+              child.receiveShadow = true;
+              child.userData.origColor = (child.material && child.material.color) ? child.material.color.getHex() : 0x0D9488;
+              partMeshes.push(child);
+            }}
+          }});
+          productGroup.add(gltf.scene);
+          centerAndFitObject(gltf.scene);
+          hideLoadingOverlay();
+        }}, function(err) {{
+          console.warn("GLTFLoader parse error, falling back to procedural:", err);
+          buildProceduralProduct(MODEL_TYPE);
+          hideLoadingOverlay();
+        }});
+        return;
+      }}
+    }} else if (fmt === 'stl') {{
+      if (typeof THREE.STLLoader !== 'undefined') {{
+        const loader = new THREE.STLLoader();
+        const buffer = base64ToArrayBuffer(b64);
+        const geometry = loader.parse(buffer);
+        const material = createPBRMaterial(BASE_COLOR_HEX, 0.85, 0.25);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData.origColor = material.color.getHex();
+        partMeshes.push(mesh);
+        productGroup.add(mesh);
+        centerAndFitObject(mesh);
+        hideLoadingOverlay();
+        return;
+      }}
+    }} else if (fmt === 'obj') {{
+      if (typeof THREE.OBJLoader !== 'undefined') {{
+        const loader = new THREE.OBJLoader();
+        const text = window.atob(b64);
+        const obj = loader.parse(text);
+        obj.traverse(function(child) {{
+          if (child.isMesh) {{
+            child.material = createPBRMaterial(BASE_COLOR_HEX, 0.8, 0.3);
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.userData.origColor = child.material.color.getHex();
+            partMeshes.push(child);
+          }}
+        }});
+        productGroup.add(obj);
+        centerAndFitObject(obj);
+        hideLoadingOverlay();
+        return;
+      }}
+    }}
+  }} catch (e) {{
+    console.error("Error parsing base64 model:", e);
+  }}
+  buildProceduralProduct(MODEL_TYPE);
+  hideLoadingOverlay();
+}}
+
 // HTML5 Canvas Procedural 3D Software Fallback (Ensures 100% offline rendering)
 function runSoftwareFallback() {{
+  hideLoadingOverlay();
   const threeCanvas = document.getElementById('three-canvas');
   threeCanvas.style.display = 'none';
   const canvas = document.getElementById('fallback-canvas');
@@ -951,7 +1117,7 @@ def render_3d_product_viewer(
 ) -> None:
     """
     Renders the professional 3D Product Digital Twin & Equipment Inspector in Streamlit.
-    Optimized with lazy loading to ensure 0 ms latency when collapsed or toggled off.
+    Directly renders CAD assets (.glb, .stl, .obj) with upload support and interactive controls.
     """
     curr_lang = lang or get_current_language()
     specs = get_product_specs(product_id)
@@ -976,21 +1142,40 @@ def render_3d_product_viewer(
         unsafe_allow_html=True,
     )
 
-    if lazy_load:
-        c_toggle, c_info = st.columns([1.5, 3.5])
-        with c_toggle:
-            is_active = st.toggle(
-                f"⚡ {t('Enable Interactive 3D Model', curr_lang)}",
-                value=False,
-                key=f"toggle_3d_{key}_{product_id}",
-                help=t("Lazy-loads WebGL 3D canvas on demand to preserve maximum dashboard performance.", curr_lang),
-            )
-        with c_info:
-            if not is_active:
-                st.caption(f"💡 {t('3D model viewer is in standby mode. Toggle switch on to load interactive WebGL digital twin.', curr_lang)}")
-        
-        if not is_active:
-            return
+    c_toggle, c_upload = st.columns([1.6, 3.4])
+    with c_toggle:
+        is_active = st.toggle(
+            f"⚡ {t('Enable Interactive 3D Model', curr_lang)}",
+            value=True,
+            key=f"toggle_3d_{key}_{product_id}",
+            help=t("Toggle WebGL 3D canvas on demand to inspect digital twin.", curr_lang),
+        )
+    with c_upload:
+        uploaded_cad = st.file_uploader(
+            f"📁 {t('Upload Custom CAD / 3D Model (.glb, .gltf, .stl, .obj)', curr_lang)}",
+            type=["glb", "gltf", "stl", "obj"],
+            key=f"uploader_3d_{key}_{product_id}",
+            help=t("Upload custom 3D model (.glb, .gltf, .stl, .obj) to inspect.", curr_lang),
+            label_visibility="collapsed",
+        )
+
+    if not is_active:
+        st.caption(f"💡 {t('3D model viewer is in standby mode. Toggle switch on to load interactive WebGL digital twin.', curr_lang)}")
+        return
+
+    model_bytes = None
+    model_format = "glb"
+    if uploaded_cad is not None:
+        model_bytes = uploaded_cad.getvalue()
+        model_format = uploaded_cad.name.split(".")[-1].lower()
+        st.success(f"✓ {t('Rendering uploaded CAD model', curr_lang)}: `{uploaded_cad.name}` ({len(model_bytes)/1024:.1f} KB)")
+    else:
+        model_bytes, model_format = resolve_3d_asset(product_id)
+        if model_bytes:
+            asset_label = ASSET_MODEL_MAP.get(product_id.upper().strip(), f"model.{model_format}")
+            st.caption(f"✓ {t('Loaded CAD digital twin asset', curr_lang)}: `{asset_label}` ({len(model_bytes)/1024:.1f} KB)")
+
+    model_b64 = base64.b64encode(model_bytes).decode("ascii") if model_bytes else None
 
     # Generate and embed the 3D viewer iframe
     html_code = generate_3d_html(
@@ -1000,6 +1185,8 @@ def render_3d_product_viewer(
         specs=specs,
         lang=curr_lang,
         height=height_px,
+        model_b64=model_b64,
+        model_format=model_format,
     )
 
     components.html(html_code, height=height_px + 20, scrolling=False)

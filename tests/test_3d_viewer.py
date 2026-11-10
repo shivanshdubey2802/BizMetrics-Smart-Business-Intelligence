@@ -123,3 +123,59 @@ def test_inventory_page_runs_with_3d_viewer():
                 t_widget.set_value(True)
         at.run()
         assert len(at.exception) == 0, f"Exceptions after toggling 3D viewer: {[e.value for e in at.exception]}"
+
+
+def test_3d_model_assets_exist_and_resolve():
+    """Verify that actual binary 3D CAD assets exist on disk and resolve correctly."""
+    from components.model_3d_viewer import resolve_3d_asset
+
+    # Test GLB models
+    b1, fmt1 = resolve_3d_asset("PROD001")
+    assert b1 is not None and len(b1) > 1000
+    assert fmt1 == "glb"
+    assert b1[:4] == b"glTF", "Asset must have valid glTF 2.0 binary magic header"
+
+    b3, fmt3 = resolve_3d_asset("PROD003")
+    assert b3 is not None and len(b3) > 1000
+    assert fmt3 == "glb"
+    assert b3[:4] == b"glTF"
+
+    # Test STL model
+    b8, fmt8 = resolve_3d_asset("PROD008")
+    assert b8 is not None and len(b8) > 500
+    assert fmt8 == "stl"
+    assert b"solid" in b8[:20].lower()
+
+    # Test Valve GLB
+    b11, fmt11 = resolve_3d_asset("PROD011")
+    assert b11 is not None and len(b11) > 1000
+    assert fmt11 == "glb"
+
+
+def test_3d_html_cad_loaders_and_overlay():
+    """Verify generated HTML includes GLTF/STL/OBJ loaders and loading indicator."""
+    import base64
+    from components.model_3d_viewer import resolve_3d_asset, get_product_specs, generate_3d_html
+
+    b, fmt = resolve_3d_asset("PROD001")
+    specs = get_product_specs("PROD001")
+    b64 = base64.b64encode(b).decode("ascii")
+
+    html = generate_3d_html(
+        product_id="PROD001",
+        product_name="Steel Pipes",
+        category="Building Materials",
+        specs=specs,
+        lang="English",
+        model_b64=b64,
+        model_format=fmt,
+    )
+
+    assert "GLTFLoader.js" in html
+    assert "STLLoader.js" in html
+    assert "OBJLoader.js" in html
+    assert "loading-overlay" in html
+    assert "Loading 3D Digital Twin..." in html
+    assert "loadModelFromBase64" in html
+    assert "MODEL_B64" in html
+

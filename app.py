@@ -859,15 +859,7 @@ elif st.session_state.get("user_role") == "owner":
                         st.rerun()
                 st.stop()
 
-        # Show customer credentials for the shop
-        st.markdown("### Customer Login Credentials")
-        credential_df = pd.DataFrame(get_customer_credentials_for_shop(st.session_state.get("shop_id", SHOP_ID)))
-        if not credential_df.empty:
-            st.dataframe(credential_df[["Customer Name", "Customer ID", "Login Password", "Login Status"]], use_container_width=True, hide_index=True)
-        else:
-            st.info("No customer credentials are available for this shop yet.")
-
-        st.write("")
+        # Navigate seamlessly to Owner Executive Dashboard
         st.switch_page("pages/01_dashboard.py")
 
 # ==============================================================================
