@@ -77,3 +77,36 @@ def test_customer_auth_and_bills_resolution():
     assert summary["total_purchase"] > 0, "Customer CUST001 must have positive purchase value"
     assert summary["paid_amount"] > 0, "Customer CUST001 must have settled funds"
 
+
+def test_all_11_customer_vertical_navigation_buttons():
+    """Verify all 11 vertical clickable navigation items match Owner Dashboard sidebar and switch sections reliably."""
+    from components.sidebar import CUSTOMER_NAV_ITEMS
+
+    at = AppTest.from_file("app.py", default_timeout=30)
+    at.session_state["user_role"] = "customer"
+    at.session_state["customer_authenticated"] = True
+    at.session_state["customer_id"] = "CUST001"
+    at.session_state["customer_name"] = "Shivansh"
+    at.session_state["shop_id"] = "shivansh_electronics_hardware"
+    at.session_state["shop_name"] = "Shivansh Electronics and Hardware"
+    at.run()
+    assert not at.exception
+
+    for item in CUSTOMER_NAV_ITEMS:
+        btn_key = f"cust_nav_btn_{item.replace(' ', '_')}"
+        btn = at.sidebar.button(key=btn_key)
+        assert btn is not None, f"Vertical navigation button {btn_key} not found in sidebar"
+        
+        # Click the navigation button
+        btn.click().run(timeout=30)
+        assert not at.exception, f"Error clicking {btn_key}: {[e.message for e in at.exception]}"
+        assert at.session_state["customer_active_section"] == item, f"Active section mismatch for {item}"
+        assert at.session_state["customer_authenticated"] is True, "Customer should remain authenticated"
+        assert at.session_state["user_role"] == "customer", "User role must remain customer"
+
+        # Verify persistence across rerun
+        at.run(timeout=30)
+        assert not at.exception
+        assert at.session_state["customer_active_section"] == item, f"Active section did not persist across rerun for {item}"
+
+
