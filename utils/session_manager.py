@@ -31,11 +31,21 @@ DEFAULT_SESSION_DURATION = timedelta(days=7)
 
 
 def _get_db_connection(target_path: Path = DB_PATH) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(target_path), timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
-    return conn
+    try:
+        from utils.database import get_connection
+        return get_connection(target_path)
+    except Exception:
+        conn = sqlite3.connect(str(target_path), timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("PRAGMA journal_mode = DELETE;")
+        except Exception:
+            pass
+        try:
+            conn.execute("PRAGMA synchronous = NORMAL;")
+        except Exception:
+            pass
+        return conn
 
 
 def init_session_tables() -> None:

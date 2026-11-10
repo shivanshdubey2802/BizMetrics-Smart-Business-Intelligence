@@ -148,3 +148,4 @@ tests\test_sih.py ..................                                     [100%]
 - `components/customer_portal.py`: Converted KPI cards to an auto-fitting responsive CSS grid; guaranteed database lookups.
 - `app.py`: Updated `get_customer_dashboard_data()` to query SQLite directly via `customer_qr_bills`.
 - `utils/database.py`: Fixed auto-seeding conditions so default database always seeds authentic transactions and receivables; updated `import_master_df_to_database()` ON CONFLICT clause to update city, customer_type, and customer_rating.
+

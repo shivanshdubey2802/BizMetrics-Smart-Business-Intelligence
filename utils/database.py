@@ -85,8 +85,8 @@ def _clean_str(val: Any, default: str = "") -> str:
 
 def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
     """
-    Return a high-performance, thread-pooled SQLite connection.
-    Enables WAL mode, foreign keys, and in-memory temporary cache.
+    Return a high-performance, thread-pooled SQLite connection with safe PRAGMA execution
+    and automated self-healing recovery for containerized cloud mounts.
     """
     target_path = str(Path(db_path) if db_path else DB_PATH)
     pool = getattr(_THREAD_LOCAL, "db_pool", None)
@@ -106,13 +106,54 @@ def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
                 pass
             pool.pop(target_path, None)
 
-    conn = sqlite3.connect(target_path, timeout=30.0, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
-    conn.execute("PRAGMA cache_size = -64000;")
-    conn.execute("PRAGMA temp_store = MEMORY;")
+    def _open_and_configure(path_str: str) -> sqlite3.Connection:
+        c = sqlite3.connect(path_str, timeout=30.0, check_same_thread=False)
+        c.row_factory = sqlite3.Row
+        try:
+            c.execute("PRAGMA foreign_keys = ON;")
+        except Exception:
+            pass
+        # Safely attempt WAL mode; gracefully fall back to DELETE mode on restricted container filesystems (e.g. Streamlit Cloud)
+        try:
+            c.execute("PRAGMA journal_mode = WAL;")
+        except Exception:
+            try:
+                c.execute("PRAGMA journal_mode = DELETE;")
+            except Exception:
+                pass
+        try:
+            c.execute("PRAGMA synchronous = NORMAL;")
+        except Exception:
+            pass
+        try:
+            c.execute("PRAGMA cache_size = -64000;")
+        except Exception:
+            pass
+        try:
+            c.execute("PRAGMA temp_store = MEMORY;")
+        except Exception:
+            pass
+        return c
+
+    try:
+        conn = _open_and_configure(target_path)
+        conn.execute("SELECT 1;")
+    except sqlite3.DatabaseError as db_err:
+        print(f"Notice: SQLite DatabaseError on {target_path} ({db_err}). Auto-recovering database...")
+        # Close and attempt cleanup of dangling lock/WAL files
+        try:
+            tp = Path(target_path)
+            for suffix in ["-wal", "-shm", "-journal"]:
+                p = Path(str(tp) + suffix)
+                if p.is_file():
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        conn = _open_and_configure(target_path)
+
     pool[target_path] = conn
     return conn
 

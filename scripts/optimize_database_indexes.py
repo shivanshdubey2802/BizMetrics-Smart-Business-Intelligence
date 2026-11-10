@@ -63,10 +63,19 @@ def optimize_databases():
                 created += 1
                 
         # Optimize storage & statistics
-        conn.execute("PRAGMA journal_mode = WAL;")
-        conn.execute("PRAGMA synchronous = NORMAL;")
-        conn.execute("PRAGMA optimize;")
-        conn.execute("ANALYZE;")
+        try:
+            conn.execute("PRAGMA journal_mode = WAL;")
+        except Exception:
+            try:
+                conn.execute("PRAGMA journal_mode = DELETE;")
+            except Exception:
+                pass
+        try:
+            conn.execute("PRAGMA synchronous = NORMAL;")
+            conn.execute("PRAGMA optimize;")
+            conn.execute("ANALYZE;")
+        except Exception:
+            pass
         conn.commit()
         conn.close()
         print(f"  Applied {created} indexes and ANALYZE on {db_path.name}.")
