@@ -59,3 +59,21 @@ def test_unauthenticated_renders_only_login_screen():
     # Verify customer dashboard components are NOT present
     sidebar_radios = [r.key for r in at.sidebar.radio]
     assert "customer_nav_selection" not in sidebar_radios, "Customer nav radio must NOT exist when unauthenticated"
+
+
+def test_customer_auth_and_bills_resolution():
+    from app import authenticate_customer
+    import customer_qr_bills
+
+    for shop_id in ["shivansh_electronics_hardware", "shivansh_bhilai_branch", "shivansh_durg_branch"]:
+        matched = authenticate_customer(shop_id, "Shivansh", "CUST001")
+        assert matched is not None, f"Customer auth failed for shop {shop_id}"
+        assert matched["customer_id"] in {"CUST001", "CUST_DEMO_01"}
+
+    bills = customer_qr_bills.get_customer_bills("CUST001")
+    assert not bills.empty, "Customer CUST001 must have non-empty transaction history"
+    summary = customer_qr_bills.get_bill_summary(bills)
+    assert summary["total_bills"] > 0, "Customer CUST001 must have positive order count"
+    assert summary["total_purchase"] > 0, "Customer CUST001 must have positive purchase value"
+    assert summary["paid_amount"] > 0, "Customer CUST001 must have settled funds"
+

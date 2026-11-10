@@ -185,3 +185,4 @@ def test_customer_isolation_and_empty_state():
     assert summary["paid_amount"] == 0.0
     assert summary["outstanding"] == 0.0
     assert summary["avg_bill"] == 0.0
+

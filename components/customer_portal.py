@@ -241,6 +241,13 @@ def render_customer_portal():
 
     # Load authentic customer bills from database / sales transactions
     bills = get_customer_bills(current_id)
+    if bills.empty:
+        try:
+            from utils.database import init_database
+            init_database()
+            bills = get_customer_bills(current_id)
+        except Exception:
+            pass
 
     # Enrich bills with Product Categories from database if available (fast cached lookup)
     if not bills.empty and "Category" not in bills.columns:

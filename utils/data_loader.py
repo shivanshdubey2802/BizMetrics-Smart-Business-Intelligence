@@ -22,9 +22,10 @@ def find_master_csv() -> Optional[Path]:
     """Finds the original private business master CSV robustly if configured or present locally."""
     # 1. First check explicit environment variable or cloud secret
     configured_path = os.getenv("BIZMETRICS_DATASET_PATH", "").strip()
-    if not configured_path and hasattr(st, "secrets") and "BIZMETRICS_DATASET_PATH" in st.secrets:
+    if not configured_path:
         try:
-            configured_path = str(st.secrets["BIZMETRICS_DATASET_PATH"]).strip()
+            if hasattr(st, "secrets") and "BIZMETRICS_DATASET_PATH" in st.secrets:
+                configured_path = str(st.secrets["BIZMETRICS_DATASET_PATH"]).strip()
         except Exception:
             configured_path = ""
 
@@ -338,7 +339,7 @@ def get_dataset_provenance() -> Dict[str, Any]:
     row_count = len(raw_df) if isinstance(raw_df, pd.DataFrame) else 0
     mode = st.session_state.get("dataset_mode", DATASET_MODE_ORIGINAL)
     name = st.session_state.get("dataset_name", "Primary Store Ledger")
-    status_label = st.session_state.get("dataset_status_label", DATASET_LABELS.get(mode, "Demo Dataset"))
+    status_label = st.session_state.get("dataset_status_label", DATASET_LABELS.get(mode, "Business Dataset"))
 
     return {
         "mode": mode,

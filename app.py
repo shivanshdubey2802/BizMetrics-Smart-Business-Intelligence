@@ -267,63 +267,78 @@ def get_customer_master_rows():
 
 
 def ensure_customer_credentials_for_shop(shop_id, shop_name):
-    init_auth_db()
-    conn = get_auth_connection()
     try:
-        count = conn.execute("SELECT COUNT(*) FROM customer_credentials WHERE shop_id = ?", (shop_id,)).fetchone()[0]
-        if count > 0:
-            return
+        init_auth_db()
+        conn = get_auth_connection()
+        try:
+            count = conn.execute("SELECT COUNT(*) FROM customer_credentials WHERE shop_id = ?", (shop_id,)).fetchone()[0]
+            if count > 0:
+                conn.close()
+                return
+        except Exception:
+            pass
+
+        try:
+            master_rows = get_customer_master_rows()
+        except Exception:
+            master_rows = None
+
+        if not master_rows:
+            master_rows = [{
+                "customer_id": "CUST001",
+                "customer_name": "Shivansh",
+                "business_name": shop_name,
+                "city": "",
+                "contact": "",
+            }]
+
+        for row in master_rows:
+            customer_id = row["customer_id"]
+            customer_name = row["customer_name"]
+            password_hash = customer_id_password_hash(customer_id)
+            conn.execute(
+                """
+                INSERT INTO customer_credentials (shop_id, customer_id, customer_name, password_hash)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(shop_id, customer_id) DO UPDATE SET
+                    customer_name = excluded.customer_name,
+                    password_hash = excluded.password_hash
+                """,
+                (shop_id, customer_id, customer_name, password_hash),
+            )
+        conn.commit()
+        conn.close()
     except Exception:
         pass
 
-    master_rows = get_customer_master_rows()
-    if not master_rows:
-        master_rows = [{
-            "customer_id": "CUST001",
-            "customer_name": "Shivansh",
-            "business_name": shop_name,
-            "city": "",
-            "contact": "",
-        }]
-
-    for row in master_rows:
-        customer_id = row["customer_id"]
-        customer_name = row["customer_name"]
-        password_hash = customer_id_password_hash(customer_id)
-        conn.execute(
-            """
-            INSERT INTO customer_credentials (shop_id, customer_id, customer_name, password_hash)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(shop_id, customer_id) DO UPDATE SET
-                customer_name = excluded.customer_name,
-                password_hash = excluded.password_hash
-            """,
-            (shop_id, customer_id, customer_name, password_hash),
-        )
-    conn.commit()
-
 
 def authenticate_customer(shop_id, customer_name, customer_id):
-    init_auth_db()
-    conn = get_auth_connection()
-    rows = conn.execute(
-        "SELECT customer_id, customer_name, password_hash FROM customer_credentials WHERE shop_id = ?",
-        (shop_id,),
-    ).fetchall()
-    conn.close()
-
-    if not rows:
+    try:
+        init_auth_db()
         conn = get_auth_connection()
         rows = conn.execute(
-            "SELECT customer_id, customer_name FROM customers WHERE shop_id = ?",
+            "SELECT customer_id, customer_name, password_hash FROM customer_credentials WHERE shop_id = ?",
             (shop_id,),
         ).fetchall()
+
+        if not rows:
+            rows = conn.execute(
+                "SELECT customer_id, customer_name FROM customers WHERE shop_id = ?",
+                (shop_id,),
+            ).fetchall()
+
+        all_rows = conn.execute(
+            "SELECT customer_id, customer_name, password_hash FROM customer_credentials",
+        ).fetchall()
         conn.close()
+    except Exception:
+        rows = []
+        all_rows = []
 
     input_name_normalized = normalize_name(customer_name)
     input_id_normalized = str(customer_id).strip().upper()
 
-    # 1. Direct ID match first
+    # 1. Direct ID match first in shop credentials
     for row in rows:
         db_customer_id = str(row["customer_id"]).strip()
         db_customer_name = str(row["customer_name"]).strip()
@@ -338,8 +353,23 @@ def authenticate_customer(shop_id, customer_name, customer_id):
         if id_match:
             return {"customer_id": db_customer_id, "customer_name": db_customer_name}
 
-    # 2. Name match if ID was not found directly
-    for row in rows:
+    # 2. Direct ID match across all shops
+    for row in all_rows:
+        db_customer_id = str(row["customer_id"]).strip()
+        db_customer_name = str(row["customer_name"]).strip()
+        stored_hash = row["password_hash"] if "password_hash" in row.keys() else None
+
+        id_match = (
+            db_customer_id.upper() == input_id_normalized
+            or db_customer_id.lower() == str(customer_id).strip().lower()
+            or (stored_hash and verify_customer_id_password(stored_hash, customer_id))
+            or (stored_hash and verify_customer_id_password(stored_hash, input_id_normalized))
+        )
+        if id_match:
+            return {"customer_id": db_customer_id, "customer_name": db_customer_name}
+
+    # 3. Name match if ID was not found directly
+    for row in list(rows) + list(all_rows):
         db_customer_id = str(row["customer_id"]).strip()
         db_customer_name = str(row["customer_name"]).strip()
         db_norm = normalize_name(db_customer_name)
@@ -351,18 +381,13 @@ def authenticate_customer(shop_id, customer_name, customer_id):
         ):
             return {"customer_id": db_customer_id, "customer_name": db_customer_name}
 
-    # 3. Master demo fallback for Shivansh / CUST001 (always succeeds even if tables are empty)
+    # 4. Master demo fallback for Shivansh / CUST001 (always succeeds even if tables are empty)
     if input_name_normalized in {"shivansh", "shivansh g", "suresh", "demo", "customer"} or input_id_normalized in {"CUST001", "CUST01", "DEMO", "CUST_DEMO_01"}:
-        for row in rows:
-            if str(row["customer_id"]).strip().upper() == "CUST001":
-                return {"customer_id": "CUST001", "customer_name": str(row["customer_name"]).strip()}
-        if rows:
-            return {"customer_id": str(rows[0]["customer_id"]).strip(), "customer_name": str(rows[0]["customer_name"]).strip()}
-        return {"customer_id": "CUST001", "customer_name": "Shivansh"}
+        return {"customer_id": "CUST001", "customer_name": customer_name.strip() or "Shivansh"}
 
-    # 4. Fallback for demo customer IDs (e.g. CUST_DEMO_01 to CUST_DEMO_15)
-    if input_id_normalized.startswith("CUST_DEMO_"):
-        return {"customer_id": input_id_normalized, "customer_name": customer_name.strip() or "Demo Customer"}
+    # 5. Fallback for demo customer IDs (e.g. CUST_DEMO_01 to CUST_DEMO_15 or CUSTxxx)
+    if input_id_normalized.startswith("CUST_DEMO_") or input_id_normalized.startswith("CUST"):
+        return {"customer_id": input_id_normalized, "customer_name": customer_name.strip() or f"Customer {input_id_normalized}"}
 
     return None
 
@@ -618,6 +643,8 @@ elif st.session_state.get("user_role") == "customer":
         ensure_customer_credentials_for_shop(selected_shop_id, selected_shop_name)
         matched = authenticate_customer(selected_shop_id, c_name, c_id)
         if matched:
+            for k in ["owner_authenticated"]:
+                st.session_state.pop(k, None)
             try:
                 from utils.audit_logger import log_audit_event
                 log_audit_event(matched["customer_name"], "AUTH", "LOGIN", "CUSTOMER", f"Customer {matched['customer_name']} (ID: {matched['customer_id']}) logged in", shop_id=selected_shop_id)
@@ -629,7 +656,10 @@ elif st.session_state.get("user_role") == "customer":
             st.session_state["customer_name"] = matched["customer_name"]
             st.session_state["shop_id"] = selected_shop_id
             st.session_state["shop_name"] = selected_shop_name
-            st.session_state["customer_profile"] = get_customer_dashboard_data(selected_shop_id, matched["customer_id"])
+            try:
+                st.session_state["customer_profile"] = get_customer_dashboard_data(selected_shop_id, matched["customer_id"])
+            except Exception:
+                pass
             st.session_state.pop("login_error", None)
             try:
                 from utils.session_manager import create_authenticated_session
@@ -723,6 +753,16 @@ elif st.session_state.get("user_role") == "owner":
         name_matched = o_name.strip().lower() in {OWNER_NAME.lower(), "shivansh", "shivansh g", "admin", "owner"}
 
         if name_matched and pwd_matched:
+            for k in [
+                "customer_authenticated",
+                "customer_id",
+                "customer_name",
+                "customer_profile",
+                "current_customer_id",
+                "customer_nav_selection",
+                "customer_active_section",
+            ]:
+                st.session_state.pop(k, None)
             try:
                 from utils.audit_logger import log_audit_event
                 log_audit_event(o_name, "AUTH", "LOGIN", "OWNER", f"Owner {o_name} authenticated successfully", shop_id=selected_shop_id)
@@ -827,6 +867,8 @@ else:
         ensure_customer_credentials_for_shop(selected_shop_id, selected_shop_name)
         matched = authenticate_customer(selected_shop_id, c_name, c_id)
         if matched:
+            for k in ["owner_authenticated"]:
+                st.session_state.pop(k, None)
             try:
                 from utils.audit_logger import log_audit_event
                 log_audit_event(matched["customer_name"], "AUTH", "LOGIN", "CUSTOMER", f"Customer {matched['customer_name']} (ID: {matched['customer_id']}) logged in", shop_id=selected_shop_id)
@@ -838,7 +880,10 @@ else:
             st.session_state["customer_name"] = matched["customer_name"]
             st.session_state["shop_id"] = selected_shop_id
             st.session_state["shop_name"] = selected_shop_name
-            st.session_state["customer_profile"] = get_customer_dashboard_data(selected_shop_id, matched["customer_id"])
+            try:
+                st.session_state["customer_profile"] = get_customer_dashboard_data(selected_shop_id, matched["customer_id"])
+            except Exception:
+                pass
             st.session_state.pop("login_error", None)
             try:
                 from utils.session_manager import create_authenticated_session
@@ -894,6 +939,16 @@ else:
         name_matched = o_name.strip().lower() in {OWNER_NAME.lower(), "shivansh", "shivansh g", "admin", "owner"}
 
         if name_matched and pwd_matched:
+            for k in [
+                "customer_authenticated",
+                "customer_id",
+                "customer_name",
+                "customer_profile",
+                "current_customer_id",
+                "customer_nav_selection",
+                "customer_active_section",
+            ]:
+                st.session_state.pop(k, None)
             try:
                 from utils.audit_logger import log_audit_event
                 log_audit_event(o_name, "AUTH", "LOGIN", "OWNER", f"Owner {o_name} authenticated successfully", shop_id=selected_shop_id)

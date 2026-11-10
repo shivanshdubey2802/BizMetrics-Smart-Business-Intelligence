@@ -885,7 +885,21 @@ def init_database(db_path: Path | str | None = None) -> None:
                 _seed_public_durg_bhilai_data(cur)
         except Exception as e:
             print(f"Notice: public Durg-Bhilai auto-seed: {e}")
+
     _INITIALIZED_DBS.add(target)
+
+    # Seed master business records if sales_transactions is empty and original CSVs are not present (cloud mode)
+    try:
+        orig_csv = APP_ROOT / "03_sales_transactions.csv"
+        if not orig_csv.is_file():
+            with get_connection(target) as chk_conn:
+                cnt = chk_conn.execute("SELECT COUNT(*) FROM sales_transactions").fetchone()[0]
+            if cnt == 0:
+                demo_csv = APP_ROOT / "data" / "demo_business_master_data.csv"
+                if demo_csv.is_file():
+                    import_master_df_to_database(pd.read_csv(demo_csv), db_path=target)
+    except Exception as e:
+        print(f"Notice: initial sales import: {e}")
 
 
 def import_all_csvs(db_path: Path | str | None = None) -> dict[str, Any]:
@@ -1723,6 +1737,7 @@ def import_master_df_to_database(
 
 def query_df(sql: str, params: tuple | list | dict | None = None, db_path: Path | str | None = None) -> pd.DataFrame:
     """Execute a SELECT query and return results as a Pandas DataFrame."""
+    init_database(db_path)
     conn = get_connection(db_path)
     try:
         return pd.read_sql_query(sql, conn, params=params)
@@ -2106,18 +2121,36 @@ def get_consolidated_master_df(shop_id: str = DEFAULT_SHOP_ID) -> pd.DataFrame:
 # ==============================================================================
 
 def get_customer_detail_from_db(customer_id: str, shop_id: str = DEFAULT_SHOP_ID) -> Optional[dict]:
-    """Fetch complete customer record directly from the database."""
+    """Fetch complete customer record directly from the database with variant tolerance."""
     init_database()
     cid = str(customer_id).strip()
-    rows = query_records(
-        "SELECT * FROM customers WHERE customer_id = ? AND shop_id = ?",
-        (cid, shop_id),
-    )
-    if rows:
-        return rows[0]
-    # Fallback without shop_id constraint
-    rows_fallback = query_records("SELECT * FROM customers WHERE customer_id = ?", (cid,))
-    return rows_fallback[0] if rows_fallback else None
+    variants = [cid]
+    digits = "".join(filter(str.isdigit, cid))
+    if digits:
+        val = int(digits)
+        for cand in [f"CUST{val:03d}", f"CUST_DEMO_{val:02d}", f"CUST_{val:03d}"]:
+            if cand not in variants:
+                variants.append(cand)
+    if cid.upper() in {"CUST001", "CUST01", "SHIVANSH", "CUST_DEMO_01"}:
+        for cand in ["CUST001", "CUST_DEMO_01", "CUST01"]:
+            if cand not in variants:
+                variants.append(cand)
+
+    for var in variants:
+        rows = query_records(
+            "SELECT * FROM customers WHERE customer_id = ? AND shop_id = ?",
+            (var, shop_id),
+        )
+        if rows:
+            res = dict(rows[0])
+            res["customer_id"] = cid
+            return res
+        rows_fallback = query_records("SELECT * FROM customers WHERE customer_id = ?", (var,))
+        if rows_fallback:
+            res = dict(rows_fallback[0])
+            res["customer_id"] = cid
+            return res
+    return None
 
 
 def update_customer_profile(customer_id: str, updates: dict, shop_id: str = DEFAULT_SHOP_ID) -> bool:

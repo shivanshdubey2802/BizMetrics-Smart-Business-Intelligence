@@ -183,74 +183,42 @@ def render_customer_sidebar():
                     width: 100% !important;
                 }}
 
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {{
-                    padding: 0.52rem 0.85rem !important;
-                    margin: 2px 0 !important;
-                    border-radius: 0 6px 6px 0 !important;
-                    background-color: transparent !important;
-                    transition: all 0.15s ease-in-out !important;
-                    border: none !important;
-                    border-left: 3.5px solid transparent !important;
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label {{
                     display: flex !important;
                     align-items: center !important;
+                    padding: 0.52rem 0.85rem !important;
+                    margin: 2px 0 !important;
+                    border-radius: 4px 8px 8px 4px !important;
+                    background-color: transparent !important;
+                    border-left: 4px solid transparent !important;
+                    transition: all 0.15s ease-in-out !important;
                     cursor: pointer !important;
                     width: 100% !important;
-                    min-height: 2.3rem !important;
+                    min-height: 2.2rem !important;
                     box-sizing: border-box !important;
-                }}
-
-                /* Bulletproof elimination of radio button circle, dot, selection indicator, and symbols */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input[type="radio"],
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label svg,
-                [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetSelectionIndicator"],
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[class*="WidgetSelectionIndicator"] {{
-                    display: none !important;
-                    width: 0 !important;
-                    height: 0 !important;
-                    min-width: 0 !important;
-                    max-width: 0 !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    border: none !important;
-                    opacity: 0 !important;
-                    pointer-events: none !important;
-                    visibility: hidden !important;
-                    position: absolute !important;
-                    clip: rect(0, 0, 0, 0) !important;
-                }}
-
-                /* Hide selection indicator and pseudo elements */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label::before,
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label::after {{
-                    display: none !important;
-                    content: none !important;
-                }}
-
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
-                    background-color: rgba(13, 148, 136, 0.08) !important;
-                }}
-
-                /* Active radio item styling with slim vertical teal indicator and subtle teal background */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked),
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[aria-checked="true"] {{
-                    background-color: rgba(13, 148, 136, 0.10) !important;
-                    background: rgba(13, 148, 136, 0.10) !important;
-                    border-left: 3.5px solid #0D9488 !important;
-                    border-radius: 0 6px 6px 0 !important;
-                    box-shadow: none !important;
-                }}
-
-                /* Ensure the text label container is fully visible, full-width, legible and clickable */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] {{
-                    display: block !important;
                     visibility: visible !important;
                     opacity: 1 !important;
-                    width: 100% !important;
-                    padding-left: 0.2rem !important;
                 }}
 
-                /* Inactive navigation item text: Navy #1E293B */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p {{
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:hover {{
+                    background-color: rgba(13, 148, 136, 0.08) !important;
+                    border-left: 4px solid rgba(13, 148, 136, 0.4) !important;
+                }}
+
+                /* Active radio item styling */
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked),
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] {{
+                    background-color: #E6F4F1 !important;
+                    border-left: 4px solid #0D9488 !important;
+                    border-radius: 4px 8px 8px 4px !important;
+                    box-shadow: 0 1px 3px rgba(13, 148, 136, 0.12) !important;
+                }}
+
+                /* Ensure all label text elements are explicitly visible */
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"],
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label p,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label span,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label div {{
                     display: block !important;
                     visibility: visible !important;
                     opacity: 1 !important;
@@ -264,10 +232,24 @@ def render_customer_sidebar():
                 }}
 
                 /* Active navigation item text: Teal #0D9488 */
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) div[data-testid="stMarkdownContainer"] p,
-                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label[aria-checked="true"] div[data-testid="stMarkdownContainer"] p {{
-                    font-weight: 600 !important;
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) p,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) span,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) div,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] p,
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label[aria-checked="true"] span {{
+                    font-weight: 700 !important;
                     color: #0D9488 !important;
+                }}
+
+                /* Only hide the raw circular radio button input itself */
+                [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label input[type="radio"] {{
+                    opacity: 0 !important;
+                    position: absolute !important;
+                    pointer-events: none !important;
+                    width: 0 !important;
+                    height: 0 !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
                 }}
 
                 /* Footer logout button container */
@@ -335,11 +317,14 @@ def render_customer_sidebar():
                 "Support Center": "Support",
             }
             display_name = friendly_names.get(item, item)
-            return t(display_name, lang)
+            icon = CUSTOMER_NAV_ICONS.get(item, "")
+            localized = t(display_name, lang)
+            return f"{icon} {localized}" if icon else localized
 
         st.radio(
             "CUSTOMER",
             CUSTOMER_NAV_ITEMS,
+            index=CUSTOMER_NAV_ITEMS.index(curr_sec) if curr_sec in CUSTOMER_NAV_ITEMS else 0,
             format_func=_format_nav_label,
             key="customer_nav_selection",
             on_change=_on_customer_radio_change,
